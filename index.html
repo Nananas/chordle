@@ -1,0 +1,83 @@
+<!DOCTYPE HTML>
+<html>
+
+	<head>
+		<meta name="viewport" content="width=device-width, initial-scale=1">
+		<meta charset="utf-8">
+
+		<title>Chordle</title>
+		<style type="text/css">
+			body {
+				margin: 0;
+				height: 100vh;
+				width: 100vw;
+			}
+
+
+			* {
+				box-sizing: border-box;
+			}
+
+			@keyframes spinner {
+				0% {
+					transform: translate3d(-50%, -50%, 0) rotate(0deg);
+				}
+				100% {
+					transform: translate3d(-50%, -50%, 0) rotate(360deg);
+				}
+			}
+
+			.spin::before {
+				animation: 1.5s linear infinite spinner;
+				animation-play-state: inherit;
+				border: solid 5px #C4B3E0;
+				border-bottom-color: #845EC3;
+				border-radius: 50%;
+				content: "";
+				position: absolute;
+				top: 10%;
+				left: 10%;
+				transform: translate3d(-50%, -50%, 0);
+				will-change: transform;
+				height: 40px;
+				width: 40px;
+			}
+		</style>
+		<!-- <link rel="stylesheet" type="text/css" href="assets/style.css"> -->
+	</head>
+	<body>
+		<div id="elm-node"></div>
+		<!-- Elm -->
+		<script>
+			storage = {	
+				initPorts: function(app) {
+					app.ports.setStorage.subscribe(function(tosave) {
+						name = tosave.name
+						someJson = tosave.json
+						localStorage.setItem(name, JSON.stringify(someJson));
+					});
+
+					app.ports.loadStorage.subscribe(function(name) {
+						storedData = localStorage.getItem(name);
+						if (storedData) {
+							j = JSON.parse(storedData);
+							app.ports.storageLoaded.send({name:name, json:j});
+						} else {
+							app.ports.storageLoaded.send({name:name, json: {}});
+						}
+					});
+				}
+			}
+		</script>
+
+		<script src="main.js"></script>
+
+	  	<script>
+	  		var app = Elm.Main.init({
+	  			node: document.getElementById("elm-node")
+	  		});
+
+	  		storage.initPorts(app);
+		</script>
+	</body>
+</html>
