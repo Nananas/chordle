@@ -42,6 +42,14 @@ lightColor =
     rgb255 252 247 255
 
 
+errorColor =
+    rgb255 255 111 145
+
+
+correctColor =
+    rgb255 0 201 167
+
+
 black =
     rgb 0 0 0
 
@@ -163,14 +171,20 @@ niceTextInputWith attr { txt, onChange, placeholder, label, icon } =
 
 
 niceText str =
+    niceTextWith [] str
+
+
+niceTextWith attr str =
     el
-        [ Element.Font.color accentColor
-        , centerX
-        , centerY
-        , Element.Font.bold
-        , Element.Font.center
-        , uppercase
-        ]
+        ([ Element.Font.color accentColor
+         , centerX
+         , centerY
+         , Element.Font.bold
+         , Element.Font.center
+         , uppercase
+         ]
+            ++ attr
+        )
     <|
         Element.text str
 

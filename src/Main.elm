@@ -20,6 +20,7 @@ import Random.List
 import Storage
 import String.Extra as String
 import Task
+import Time
 import UI
 import Words exposing (..)
 
@@ -54,9 +55,11 @@ type Msg
     | NoOp
     | OnGiveUpClicked
     | OnRestartDictionaryClick
+    | OnToggleHelp
       --
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
+    | OnTick Time.Posix
 
 
 
@@ -84,6 +87,9 @@ type alias Model =
 
     --
     , showPopupForCharacter : Maybe ( Int, Int )
+    , showTodoUpdate : Maybe Int
+    , showTodoUpdateTimer : Int
+    , showHelp : Bool
     }
 
 
@@ -147,6 +153,9 @@ update msg session =
                 , currentInput = ""
                 , gameState = NotDone
                 , showPopupForCharacter = Nothing
+                , showTodoUpdate = Nothing
+                , showTodoUpdateTimer = 0
+                , showHelp = False
                 }
             , Storage.setStorage
                 { name = "dictionary"
@@ -174,6 +183,9 @@ update msg session =
                 , currentInput = ""
                 , gameState = NotDone
                 , showPopupForCharacter = Nothing
+                , showTodoUpdate = Nothing
+                , showTodoUpdateTimer = 0
+                , showHelp = False
                 }
             , Storage.setStorage
                 { name = "dictionary"
@@ -211,7 +223,7 @@ update msg session =
             )
 
         ( Ready model, ToNextWord ) ->
-            ( session
+            ( Ready model
             , Cmd.batch
                 [ Random.generate NewWordChain (wordChainGenerator model.dictionary)
                 , Browser.Dom.focus idInput
@@ -220,7 +232,15 @@ update msg session =
             )
 
         ( Ready model, OnGiveUpClicked ) ->
-            ( Ready { model | gameState = TooManyWrongAnswers }, Cmd.none )
+            ( Ready
+                { model
+                    | gameState = TooManyWrongAnswers
+                    , dictionary = model.wordChain ++ model.dictionary |> List.unique
+                    , showTodoUpdate = Just (List.length model.wordChain)
+                    , showTodoUpdateTimer = 2
+                }
+            , Cmd.none
+            )
 
         ( Ready model, OnRestartDictionaryClick ) ->
             ( Ready { model | gameState = NotDone, dictionary = allWords }
@@ -231,12 +251,22 @@ update msg session =
                 ]
             )
 
+        ( Ready model, OnToggleHelp ) ->
+            ( Ready { model | showHelp = not model.showHelp }, Cmd.none )
+
         --
         ( Ready model, OnMouseEnterCharacter id ) ->
             ( Ready { model | showPopupForCharacter = Just id }, Cmd.none )
 
         ( Ready model, OnMouseLeaveCharacter ) ->
             ( Ready { model | showPopupForCharacter = Nothing }, Cmd.none )
+
+        ( Ready model, OnTick _ ) ->
+            if model.showTodoUpdateTimer > 0 then
+                ( Ready { model | showTodoUpdateTimer = model.showTodoUpdateTimer - 1 }, Cmd.none )
+
+            else
+                ( Ready { model | showTodoUpdate = Nothing }, Cmd.none )
 
         --
         ( LoadingStorage, _ ) ->
@@ -258,7 +288,10 @@ update msg session =
 
 subscriptions : Session -> Sub Msg
 subscriptions _ =
-    Storage.storageLoaded StorageLoaded
+    Sub.batch
+        [ Storage.storageLoaded StorageLoaded
+        , Time.every 1000 OnTick
+        ]
 
 
 
@@ -267,36 +300,148 @@ subscriptions _ =
 
 view : Session -> Html.Html Msg
 view session =
-    layout [ width fill, height fill ] <|
+    layoutWith { options = [ focusStyle { backgroundColor = Nothing, borderColor = Nothing, shadow = Nothing } ] } [ width fill, height fill ] <|
         case session of
             Ready model ->
-                column [ centerX, centerY, spacing 50 ]
-                    [ row [ centerX, spacing 20 ]
-                        [ UI.niceText <| String.fromInt <| List.length model.dictionary
-                        , UI.niceButton "Restart" OnRestartDictionaryClick Nothing
-                        ]
-                    , column [ spacing 20 ]
-                        (List.indexedMap
-                            (\wordId word ->
-                                row [ width <| px 600, spacing 20 ]
-                                    [ el [ width <| fillPortion 1 ] <| viewWordAnswers model wordId word
-                                    , el [ width <| fillPortion 1 ] <| viewWordEnglish word
-                                    ]
-                            )
-                            model.wordChain
-                        )
-                    , viewWrongAnwers <| allWrongAnswers model
-                    , el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
-                    , case model.gameState of
-                        NotDone ->
-                            viewInput model
+                column [ width fill, height fill ]
+                    [ viewTopBar model
+                    , row [ width fill, height fill, inFront <| viewHelp model ]
+                        [ el [ height fill, width <| fillPortion 1 ] none
+                        , el [ height fill, width <| fillPortion 5 ] <|
+                            column [ centerX, centerY, spacing 50 ]
+                                [ column [ spacing 20, UI.floating, padding 40 ]
+                                    (List.indexedMap
+                                        (\wordId word ->
+                                            row [ width <| px 600, spacing 20 ]
+                                                [ el [ width <| fillPortion 1 ] <| viewWordAnswers model wordId word
+                                                , el [ width <| fillPortion 1 ] <| viewWordEnglish word
+                                                ]
+                                        )
+                                        model.wordChain
+                                    )
+                                , viewWrongAnwers <| allWrongAnswers model
+                                , case model.gameState of
+                                    NotDone ->
+                                        el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
 
-                        _ ->
-                            UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
+                                    _ ->
+                                        el [ centerX, height <| px 40 ] none
+                                , case model.gameState of
+                                    NotDone ->
+                                        viewInput model
+
+                                    _ ->
+                                        UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
+                                ]
+                        , el [ height fill, width <| fillPortion 1 ] none
+                        ]
                     ]
 
             _ ->
                 UI.spinner
+
+
+viewTopBar : Model -> Element Msg
+viewTopBar model =
+    row [ height <| px 50, width fill, Background.color UI.accentColor, paddingXY 20 0 ]
+        [ el [ width <| fillPortion 1, alignRight ] <| UI.niceButton "Restart Game" OnRestartDictionaryClick Nothing
+        , el [ width <| fillPortion 5 ] <|
+            el
+                [ centerX
+                , onRight <|
+                    el [] <|
+                        case model.showTodoUpdate of
+                            Nothing ->
+                                text <| ""
+
+                            Just u ->
+                                el
+                                    [ Font.color <|
+                                        if u < 0 then
+                                            UI.correctColor
+
+                                        else
+                                            UI.errorColor
+                                    , Font.bold
+                                    ]
+                                <|
+                                    text <|
+                                        "  "
+                                            ++ (if u > 0 then
+                                                    "+"
+
+                                                else
+                                                    ""
+                                               )
+                                            ++ String.fromInt u
+                ]
+            <|
+                UI.niceTextWith [ Font.color UI.white ] <|
+                    "Words to go: "
+                        ++ (String.fromInt <| List.length model.dictionary)
+        , UI.niceButton "Help" OnToggleHelp Nothing
+            |> el [ alignRight ]
+            |> el [ width <| fillPortion 1 ]
+        ]
+
+
+viewHelp : Model -> Element Msg
+viewHelp model =
+    if model.showHelp then
+        el
+            [ width fill
+            , height fill
+            , behindContent <|
+                el
+                    [ width fill
+                    , height fill
+                    , alpha 0.5
+                    , Background.color UI.white
+                    , Element.Events.onClick OnToggleHelp
+                    ]
+                    none
+            ]
+        <|
+            column
+                [ centerX
+                , centerY
+                , width <| minimum 500 shrink
+                , height <| minimum 500 shrink
+                , padding 40
+                , Background.color UI.accentColorLight
+                , spacing 20
+                , UI.rounded 10
+                ]
+                [ el [] <| UI.heading "How to play?"
+                , column [ spacing 3 ]
+                    [ text "1. Write pinyin and tones in the input box"
+                    , text "    on the bottom"
+                    ]
+                , column [ spacing 3 ]
+                    [ text "2. Either press the 'Ok' button or press Enter"
+                    , text "    on the keyboard"
+                    ]
+                , column [ spacing 3 ]
+                    [ text "3. If the pinyin and tone is correct of one or more "
+                    , text "    of the characters, the hanzi will show up in green. "
+                    , text "    If only the pinyin was correct, the pinyin will show up"
+                    , text "    in yellow. Try again with the correct tone"
+                    , text "    All the wrong attempt will be shown in gray below the board"
+                    ]
+                , column [ spacing 3 ]
+                    [ text "4. When all characters are found, or when more than 5 wrong attempts "
+                    , text "    were made, the round is over."
+                    , text "    All characters are then shown, color coded by their tone."
+                    ]
+                , column [ spacing 3 ]
+                    [ text "5. Now press 'Next' to go to the next round of words"
+                    ]
+                , column [ paddingXY 0 10 ]
+                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length allWords) ++ " words" ]
+                ]
+
+    else
+        none
 
 
 viewWordAnswers : Model -> Int -> Word -> Element Msg
@@ -342,6 +487,12 @@ viewSingleHanzi model wordId id character =
 
                     else
                         none
+
+        known =
+            isCharacterKnown model character
+
+        similar =
+            isCharacterSimilar model character
     in
     el
         ([ UI.floating
@@ -349,10 +500,15 @@ viewSingleHanzi model wordId id character =
          , paddingXY 20 0
 
          --, width <| maximum 50 shrink
-         , width
-            (shrink
-                |> minimum 50
-            )
+         , width <|
+            if known then
+                px 50
+
+            else if similar then
+                shrink
+
+            else
+                px 50
          , height <| px 50
          , Font.color <|
             case model.gameState of
@@ -365,10 +521,10 @@ viewSingleHanzi model wordId id character =
          , Background.color <|
             case model.gameState of
                 NotDone ->
-                    if isCharacterKnown model character then
+                    if known then
                         rgb255 152 226 172
 
-                    else if isCharacterSimilar model character then
+                    else if similar then
                         rgb255 240 230 110
 
                     else
@@ -383,7 +539,7 @@ viewSingleHanzi model wordId id character =
                     rgba 0 0 0 0
 
                 _ ->
-                    if isCharacterKnown model character then
+                    if known then
                         rgb255 152 226 172
 
                     else
@@ -406,10 +562,10 @@ viewSingleHanzi model wordId id character =
             text <|
                 case model.gameState of
                     NotDone ->
-                        if isCharacterKnown model character then
+                        if known then
                             character.hanzi
 
-                        else if isCharacterSimilar model character then
+                        else if similar then
                             character.pinyinPart.pinyin
 
                         else
@@ -439,15 +595,41 @@ toneToColor tone =
 
 viewInput : Model -> Element Msg
 viewInput model =
-    Input.text
-        [ onEnter UserPressedEnter
-        , htmlAttribute <| Html.Attributes.id idInput
+    row
+        [ width fill
+        , Border.widthEach
+            { top = 0
+            , left = 0
+            , right = 0
+            , bottom = 2
+            }
+        , spacing 20
         ]
-        { onChange = InputHanzi
-        , text = model.currentInput
-        , placeholder = Nothing
-        , label = Input.labelHidden ""
-        }
+        [ Input.text
+            [ onEnter UserPressedEnter
+            , htmlAttribute <| Html.Attributes.id idInput
+            , Border.width 0
+            ]
+            { onChange = InputHanzi
+            , text = model.currentInput
+            , placeholder = Just <| Input.placeholder [ Font.size 14 ] <| text "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK' or the Enter key"
+            , label = Input.labelHidden ""
+            }
+        , Input.button
+            [ mouseOver [ Font.color UI.accentColorHighlight ]
+            , Font.color UI.accentColor
+            , Background.color UI.white
+            , width shrink
+            , height <| px 40
+            , width <| px 40
+            , Border.rounded 10
+            ]
+            { onPress = Just UserPressedEnter
+            , label =
+                el [ centerY, centerX, paddingXY 20 0, spacing 20 ] <|
+                    text "Ok"
+            }
+        ]
 
 
 viewWrongAnwers : List PinyinPart -> Element Msg
@@ -574,7 +756,14 @@ processGameFinished model =
                 |> Task.attempt (\_ -> NoOp)
     in
     if List.length (allWrongAnswers model) > 5 then
-        ( { model | gameState = TooManyWrongAnswers }, Cmd.none )
+        ( { model
+            | gameState = TooManyWrongAnswers
+            , dictionary = model.wordChain ++ model.dictionary |> List.unique
+            , showTodoUpdate = Just (List.length model.wordChain)
+            , showTodoUpdateTimer = 2
+          }
+        , Cmd.none
+        )
 
     else
         let
@@ -585,7 +774,13 @@ processGameFinished model =
                         True
         in
         if finished then
-            ( { model | gameState = FilledInCorrectly }, focusNextBtn )
+            ( { model
+                | gameState = FilledInCorrectly
+                , showTodoUpdate = Just -(List.length model.wordChain)
+                , showTodoUpdateTimer = 2
+              }
+            , focusNextBtn
+            )
 
         else
             ( { model | gameState = NotDone }, focusNextBtn )
