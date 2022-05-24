@@ -297,7 +297,7 @@ allWords =
     , newWord "当然" "dang1ran2" "ADVERB: of course"
     , newWord "到" "dao4" "VERB: to arrive"
     , newWord "德国" "De2guo2" "PROPER NOUN: Germany"
-    , newWord "得" "de5" "VERB: to have, to get"
+    , newWord "得" "de5" "VERB: to have to, to must, to get"
     , newWord "的" "de5" "STRUCTURAL PARTICLE: (a possessive or modifying particle)"
     , newWord "等" "deng3" "VERB: to wait"
     , newWord "弟弟" "di4di5" "NOUN: younger brother"
@@ -398,7 +398,7 @@ allWords =
     , newWord "喝" "he1" "VERB: drink"
     , newWord "和" "he2" "CONJUNCTION: and"
     , newWord "合适" "he2shi4" "ADJECTIVE: suitable"
-    , newWord "合影" "he2ying3" "NOUN: group photo (or picture)|VERB PLUS OBJECT: (-//-) take a group photo (or picture)"
+    , newWord "合影" "he2ying3" "NOUN: group photo (or picture)|VERB PLUS OBJECT: take a group photo (or picture)"
     , newWord "黑" "hei1" "ADJECTIVE: black"
     , newWord "黑客" "hei1ke4" "NOUN: hacker"
     , newWord "很" "hen3" "ADVERB: very"
@@ -850,4 +850,11 @@ allWords =
     , newWord "坐" "zuo4" "VERB: to sit"
     , newWord "做" "zuo4" "VERB: to do, to be, to make"
     , newWord "作家" "zuo4jia1" "NOUN: writer"
+
+    --
+    , newWord "裙子" "qun2zi5" "NOUN: skirt"
+    , newWord "清楚" "qing1chu3" "ADJECTIVE: clear, distinct"
+    , newWord "正式" "zheng4shi4" "ADJECTIVE: formal"
+    , newWord "关门" "guan1men2" "VERB: to close (a door, a shop)"
+    , newWord "累" "lei4" "ADJECTIVE: (be) tired, fatigued"
     ]
