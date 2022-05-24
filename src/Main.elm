@@ -279,8 +279,8 @@ view session =
                         (List.indexedMap
                             (\wordId word ->
                                 row [ width <| px 600, spacing 20 ]
-                                    [ el [] <| viewWordAnswers model wordId word
-                                    , el [ alignLeft ] <| viewWordEnglish word
+                                    [ el [ width <| fillPortion 1 ] <| viewWordAnswers model wordId word
+                                    , el [ width <| fillPortion 1 ] <| viewWordEnglish word
                                     ]
                             )
                             model.wordChain
@@ -310,7 +310,7 @@ viewWordEnglish word =
     word.english
         |> String.split "|"
         |> List.map text
-        |> row [ spacing 5, alignLeft ]
+        |> column [ spacing 5, alignLeft ]
 
 
 viewSingleHanzi : Model -> Int -> Int -> Character -> Element Msg
