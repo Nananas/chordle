@@ -403,7 +403,7 @@ viewWordEnglish word =
     word.english
         |> String.split "|"
         |> List.map text
-        |> column [ spacing 5, alignLeft ]
+        |> paragraph [ spacing 5, alignLeft ]
 
 
 viewSingleHanzi : Model -> Int -> Int -> Character -> Element Msg
