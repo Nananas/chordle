@@ -289,7 +289,7 @@ allWords =
     , newWord "当然" "dang1ran2" "ADVERB: of course"
     , newWord "到" "dao4" "VERB: to arrive"
     , newWord "德国" "De2guo2" "PROPER NOUN: Germany"
-    , newWord "得" "de5" "VERB: to have to, to must, to get"
+    , newWord "得" "de3" "VERB: to have to, to must, to get"
     , newWord "的" "de5" "STRUCTURAL PARTICLE: (a possessive or modifying particle)"
     , newWord "等" "deng3" "VERB: to wait"
     , newWord "弟弟" "di4di5" "NOUN: younger brother"
