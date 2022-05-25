@@ -8,6 +8,7 @@ import Element.Border as Border
 import Element.Events
 import Element.Font as Font
 import Element.Input as Input
+import Help
 import Html
 import Html.Attributes
 import Html.Events
@@ -21,6 +22,7 @@ import Storage
 import String.Extra as String
 import Task
 import Time
+import Tones exposing (..)
 import UI
 import Words exposing (..)
 
@@ -52,7 +54,6 @@ type Msg
     | InputHanzi String
     | UserPressedEnter
     | ToNextWord
-    | NoOp
     | OnGiveUpClicked
     | OnRestartDictionaryClick
     | OnToggleHelp
@@ -60,6 +61,9 @@ type Msg
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
     | OnTick Time.Posix
+      --
+    | NoOp
+    | NoOpString String
 
 
 
@@ -278,6 +282,9 @@ update msg session =
         ( Ready _, NoOp ) ->
             ( session, Cmd.none )
 
+        ( Ready _, NoOpString _ ) ->
+            ( session, Cmd.none )
+
         ( Ready _, StorageLoaded _ ) ->
             ( session, Cmd.none )
 
@@ -305,7 +312,7 @@ view session =
             Ready model ->
                 column [ width fill, height fill ]
                     [ viewTopBar model
-                    , row [ width fill, height fill, inFront <| viewHelp model ]
+                    , row [ width fill, height fill, inFront <| Help.view model.showHelp OnToggleHelp NoOpString ]
                         [ el [ height fill, width <| fillPortion 1 ] none
                         , el [ height fill, width <| fillPortion 5 ] <|
                             column [ centerX, centerY, spacing 50 ]
@@ -383,65 +390,6 @@ viewTopBar model =
             |> el [ alignRight ]
             |> el [ width <| fillPortion 1 ]
         ]
-
-
-viewHelp : Model -> Element Msg
-viewHelp model =
-    if model.showHelp then
-        el
-            [ width fill
-            , height fill
-            , behindContent <|
-                el
-                    [ width fill
-                    , height fill
-                    , alpha 0.5
-                    , Background.color UI.white
-                    , Element.Events.onClick OnToggleHelp
-                    ]
-                    none
-            ]
-        <|
-            column
-                [ centerX
-                , centerY
-                , width <| minimum 500 shrink
-                , height <| minimum 500 shrink
-                , padding 40
-                , Background.color UI.accentColorLight
-                , spacing 20
-                , UI.rounded 10
-                ]
-                [ el [] <| UI.heading "How to play?"
-                , column [ spacing 3 ]
-                    [ text "1. Write pinyin and tones in the input box"
-                    , text "    on the bottom"
-                    ]
-                , column [ spacing 3 ]
-                    [ text "2. Either press the 'Ok' button or press Enter"
-                    , text "    on the keyboard"
-                    ]
-                , column [ spacing 3 ]
-                    [ text "3. If the pinyin and tone is correct of one or more "
-                    , text "    of the characters, the hanzi will show up in green. "
-                    , text "    If only the pinyin was correct, the pinyin will show up"
-                    , text "    in yellow. Try again with the correct tone"
-                    , text "    All the wrong attempt will be shown in gray below the board"
-                    ]
-                , column [ spacing 3 ]
-                    [ text "4. When all characters are found, or when more than 5 wrong attempts "
-                    , text "    were made, the round is over."
-                    , text "    All characters are then shown, color coded by their tone."
-                    ]
-                , column [ spacing 3 ]
-                    [ text "5. Now press 'Next' to go to the next round of words"
-                    ]
-                , column [ paddingXY 0 10 ]
-                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length allWords) ++ " words" ]
-                ]
-
-    else
-        none
 
 
 viewWordAnswers : Model -> Int -> Word -> Element Msg
@@ -573,24 +521,6 @@ viewSingleHanzi model wordId id character =
 
                     _ ->
                         character.hanzi
-
-
-toneToColor tone =
-    case tone of
-        First ->
-            rgb255 210 210 100
-
-        Second ->
-            rgb255 120 220 140
-
-        Third ->
-            rgb255 125 125 240
-
-        Forth ->
-            rgb255 210 125 240
-
-        Fifth ->
-            rgb255 150 150 150
 
 
 viewInput : Model -> Element Msg

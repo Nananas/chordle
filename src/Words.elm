@@ -6,7 +6,7 @@ module Words exposing (..)
 import Json.Encode
 import List.Extra as List
 import Set exposing (Set)
-import Tones
+import Tones exposing (..)
 
 
 type alias Hanzi =
@@ -15,14 +15,6 @@ type alias Hanzi =
 
 type alias PinyinPart =
     { pinyin : String, tone : Tone }
-
-
-type Tone
-    = First
-    | Second
-    | Third
-    | Forth
-    | Fifth
 
 
 type PinyinPartsSimilarity

@@ -9,6 +9,8 @@ import Element.Input
 import Html
 import Html.Attributes
 import Html.Events
+import Svg
+import Svg.Attributes
 
 
 
@@ -200,3 +202,75 @@ heading str =
         ]
     <|
         Element.text str
+
+
+arrowRight size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg
+                [ Svg.Attributes.fill "none"
+                , Svg.Attributes.viewBox "0 0 24 24"
+                , Svg.Attributes.strokeWidth "2"
+                , Svg.Attributes.stroke "currentColor"
+                ]
+                [ Svg.path
+                    [ Svg.Attributes.strokeLinecap "round"
+                    , Svg.Attributes.strokeLinejoin "round"
+                    , Svg.Attributes.d "M14 5l7 7m0 0l-7 7m7-7H3"
+                    ]
+                    []
+                ]
+
+
+arrowLeft size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg
+                [ Svg.Attributes.fill "none"
+                , Svg.Attributes.viewBox "0 0 24 24"
+                , Svg.Attributes.strokeWidth "2"
+                , Svg.Attributes.stroke "currentColor"
+                ]
+                [ Svg.path
+                    [ Svg.Attributes.strokeLinecap "round"
+                    , Svg.Attributes.strokeLinejoin "round"
+                    , Svg.Attributes.d "M10 19l-7-7m0 0l7-7m-7 7h18"
+                    ]
+                    []
+                ]
+
+
+arrowDown size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg
+                [ Svg.Attributes.fill "none"
+                , Svg.Attributes.viewBox "0 0 24 24"
+                , Svg.Attributes.strokeWidth "2"
+                , Svg.Attributes.stroke "currentColor"
+                ]
+                [ Svg.path
+                    [ Svg.Attributes.strokeLinecap "round"
+                    , Svg.Attributes.strokeLinejoin "round"
+                    , Svg.Attributes.d "M19 14l-7 7m0 0l-7-7m7 7V3"
+                    ]
+                    []
+                ]
+
+
+cursorClick size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg
+                [ Svg.Attributes.fill "none"
+                , Svg.Attributes.viewBox "0 0 24 24"
+                , Svg.Attributes.strokeWidth "2"
+                , Svg.Attributes.stroke "currentColor"
+                ]
+                [ Svg.path
+                    [ Svg.Attributes.strokeLinecap "round"
+                    , Svg.Attributes.strokeLinejoin "round"
+                    , Svg.Attributes.d "M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122"
+                    ]
+                    []
+                ]

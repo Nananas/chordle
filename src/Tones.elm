@@ -1,4 +1,32 @@
-module Tones exposing (replace)
+module Tones exposing (..)
+
+import Element exposing (rgb255)
+
+
+type Tone
+    = First
+    | Second
+    | Third
+    | Forth
+    | Fifth
+
+
+toneToColor tone =
+    case tone of
+        First ->
+            rgb255 210 210 100
+
+        Second ->
+            rgb255 120 220 140
+
+        Third ->
+            rgb255 125 125 240
+
+        Forth ->
+            rgb255 210 125 240
+
+        Fifth ->
+            rgb255 150 150 150
 
 
 replace : String -> String
