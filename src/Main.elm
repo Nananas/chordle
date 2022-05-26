@@ -402,8 +402,8 @@ viewWordAnswers model wordId word =
 viewWordEnglish word =
     word.english
         |> String.split "|"
-        |> List.map text
-        |> paragraph [ spacing 5, alignLeft ]
+        |> List.map (\txt -> paragraph [] [ text txt ])
+        |> column [ spacing 5, alignLeft ]
 
 
 viewSingleHanzi : Model -> Int -> Int -> Character -> Element Msg
