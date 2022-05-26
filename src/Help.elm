@@ -54,6 +54,7 @@ view showHelp toggleMsg noOpMsg =
                             , spacing 20
                             , Background.color UI.white
                             , centerX
+                            , inFront <| el [ Background.color <| rgba255 0 0 0 0, width fill, height fill ] none
                             ]
                             [ Input.text
                                 [ Border.width 0
@@ -96,6 +97,7 @@ view showHelp toggleMsg noOpMsg =
                             , Background.color UI.white
                             , centerX
                             , Font.color UI.gray
+                            , inFront <| el [ Background.color <| rgba255 0 0 0 0, width fill, height fill ] none
                             ]
                             [ Input.text [ Border.width 0 ]
                                 { onChange = noOpMsg
