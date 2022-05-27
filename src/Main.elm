@@ -294,10 +294,20 @@ update msg session =
 
 
 subscriptions : Session -> Sub Msg
-subscriptions _ =
+subscriptions session =
     Sub.batch
         [ Storage.storageLoaded StorageLoaded
-        , Time.every 1000 OnTick
+        , case session of
+            Ready { showTodoUpdate } ->
+                case showTodoUpdate of
+                    Just _ ->
+                        Time.every 1000 OnTick
+
+                    Nothing ->
+                        Sub.none
+
+            _ ->
+                Sub.none
         ]
 
 
