@@ -742,7 +742,7 @@ allWords =
     , newWord "姓名" "xing4ming2" "NOUN: name"
     , newWord "修" "xiu1" "VERB: to repair"
     , newWord "休息" "xiu1xi5" "VERB: to take a rest"
-    , newWord "续借" "xu4jie4" "VERB: to renew"
+    , newWord "续借" "xu4jie4" "VERB: to renew (a library book), extend a loan"
     , newWord "选修" "xuan3xiu1" "VERB: to take an elective course"
     , newWord "学生" "xue2sheng5" "NOUN: student"
     , newWord "学习" "xue2xi2" "VERB: to learn, to study"
@@ -860,4 +860,7 @@ allWords =
     , newWord "内衣" "nei4yi1" "NOUN: underwear, underclothes"
     , newWord "内裤" "nei4ku4" "NOUN: underpants, panties"
     , newWord "职务" "zhi2wu4" "NOUN: post, duties, job"
+    , newWord "夜晚" "ye4wan3" "NOUN: night"
+    , newWord "夜里" "ye4li3" "NOUN: at night"
+    , newWord "笑" "xiao4" "VERB: smile, laugh"
     ]
