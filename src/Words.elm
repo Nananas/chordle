@@ -863,4 +863,5 @@ allWords =
     , newWord "夜晚" "ye4wan3" "NOUN: night"
     , newWord "夜里" "ye4li3" "NOUN: at night"
     , newWord "笑" "xiao4" "VERB: smile, laugh"
+    , newWord "周末" "zhou1mo4" "NOUN: the weekend"
     ]
