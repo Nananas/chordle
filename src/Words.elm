@@ -358,7 +358,7 @@ allWords =
     , newWord "公分" "gong1fen1" "NOUN: centimetre"
     , newWord "公斤" "gong1jin1" "MEASURE WORD: kilogram (kg)"
     , newWord "公司" "gong1si1" "NOUN: company"
-    , newWord "公元" "gong1yuan2" "NOUN: park"
+    , newWord "公元" "gong1yuan2" "NOUN: AD, the Christian era"
     , newWord "公园" "gong1yuan2" "NOUN: park"
     , newWord "工作" "gong1zuo4" "VERB: to work|NOUN: work, job"
     , newWord "共产党" "Gong4chan3dang3" "PROPER NOUN: Communist Party"
