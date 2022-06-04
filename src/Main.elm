@@ -2,6 +2,7 @@ module Main exposing (..)
 
 import Browser
 import Browser.Dom
+import Browser.Events
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -12,9 +13,12 @@ import Help
 import Html
 import Html.Attributes
 import Html.Events
+import Icons
 import Json.Decode
 import Json.Encode
 import List.Extra as List
+import MobileUI
+import Notifications
 import Process
 import Random
 import Random.List
@@ -25,6 +29,10 @@ import Time
 import Tones exposing (..)
 import UI
 import Words exposing (..)
+
+
+inactivityTime =
+    30 * 60 * 1000
 
 
 idNextButton =
@@ -49,7 +57,9 @@ main =
 
 
 type Msg
-    = StorageLoaded Storage.Storage
+    = OnGetViewport Browser.Dom.Viewport
+    | OnResizeViewport Int Int
+    | StorageLoaded Storage.Storage
     | NewWordChain WordChain
     | InputHanzi String
     | UserPressedEnter
@@ -57,13 +67,21 @@ type Msg
     | OnGiveUpClicked
     | OnRestartDictionaryClick
     | OnToggleHelp
+    | OnToggleScreenKeyboard
       --
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
     | OnTick Time.Posix
+    | OnNotificationPermissionChanged String
+    | OnToggleNotifications
+      --
+    | OnActivity Time.Posix
       --
     | NoOp
     | NoOpString String
+    | KeyboardInput String
+    | KeyboardBackspace
+    | KeyboardClear
 
 
 
@@ -71,9 +89,15 @@ type Msg
 
 
 type Session
-    = LoadingStorage
-    | Initializing (List Word)
+    = LoadingDeviceType
+    | LoadingStorage Device
+    | Initializing (List Word) Device
     | Ready Model
+
+
+type Device
+    = Mobile
+    | Desktop
 
 
 type alias WordChain =
@@ -81,7 +105,10 @@ type alias WordChain =
 
 
 type alias Model =
-    { dictionary : List Word
+    { device : Device
+
+    --
+    , dictionary : List Word
 
     --
     , wordChain : List Word
@@ -94,6 +121,14 @@ type alias Model =
     , showTodoUpdate : Maybe Int
     , showTodoUpdateTimer : Int
     , showHelp : Bool
+
+    --
+    , useScreenKeyboardOnMobile : Bool
+    , keyboardKeyFeedback : Maybe String
+
+    --
+    , notificationsEnabled : Maybe Bool
+    , lastActivity : Time.Posix
     }
 
 
@@ -109,13 +144,9 @@ type GameState
 
 init : () -> ( Session, Cmd Msg )
 init _ =
-    ( LoadingStorage
-    , Cmd.batch
-        [ Process.sleep 100
-            |> Task.andThen (\_ -> Browser.Dom.focus idInput)
-            |> Task.attempt (\_ -> NoOp)
-        , Storage.loadStorage "dictionary"
-        ]
+    ( LoadingDeviceType
+    , Browser.Dom.getViewport
+        |> Task.perform OnGetViewport
     )
 
 
@@ -126,7 +157,31 @@ init _ =
 update : Msg -> Session -> ( Session, Cmd Msg )
 update msg session =
     case ( session, msg ) of
-        ( LoadingStorage, StorageLoaded storage ) ->
+        ( LoadingDeviceType, OnGetViewport { viewport } ) ->
+            let
+                device =
+                    case (classifyDevice { width = floor viewport.width, height = floor viewport.height }).class of
+                        Phone ->
+                            Mobile
+
+                        _ ->
+                            Desktop
+            in
+            ( LoadingStorage device, Storage.loadStorage "dictionary" )
+
+        ( Ready model, OnResizeViewport width height ) ->
+            let
+                device =
+                    case (classifyDevice { width = width, height = height }).class of
+                        Phone ->
+                            Mobile
+
+                        _ ->
+                            Desktop
+            in
+            ( Ready { model | device = device }, Cmd.none )
+
+        ( LoadingStorage device, StorageLoaded storage ) ->
             let
                 words : List String
                 words =
@@ -147,11 +202,12 @@ update msg session =
                                     words
                             )
             in
-            ( Initializing dictionary, Random.generate NewWordChain (wordChainGenerator dictionary) )
+            ( Initializing dictionary device, Random.generate NewWordChain (wordChainGenerator dictionary) )
 
-        ( Initializing dictionary, NewWordChain wordChain ) ->
+        ( Initializing dictionary device, NewWordChain wordChain ) ->
             ( Ready
-                { dictionary = wordChain |> List.foldl (\w d -> List.remove w d) dictionary
+                { device = device
+                , dictionary = wordChain |> List.foldl (\w d -> List.remove w d) dictionary
                 , wordChain = wordChain
                 , answers = []
                 , currentInput = ""
@@ -160,20 +216,48 @@ update msg session =
                 , showTodoUpdate = Nothing
                 , showTodoUpdateTimer = 0
                 , showHelp = False
+                , notificationsEnabled = Nothing
+                , lastActivity = Time.millisToPosix 0
+                , useScreenKeyboardOnMobile = True
+                , keyboardKeyFeedback = Nothing
                 }
-            , Storage.setStorage
-                { name = "dictionary"
-                , json =
-                    Json.Encode.list
-                        (\word ->
-                            word.characters
-                                |> List.map .hanzi
-                                |> String.join ""
-                                |> Json.Encode.string
-                        )
-                        dictionary
-                }
+            , Cmd.batch
+                [ Storage.setStorage
+                    { name = "dictionary"
+                    , json =
+                        Json.Encode.list
+                            (\word ->
+                                word.characters
+                                    |> List.map .hanzi
+                                    |> String.join ""
+                                    |> Json.Encode.string
+                            )
+                            dictionary
+                    }
+                , Process.sleep 100
+                    |> Task.andThen (\_ -> Browser.Dom.focus idInput)
+                    |> Task.attempt (\_ -> NoOp)
+                ]
             )
+
+        ( Ready model, OnToggleNotifications ) ->
+            case model.notificationsEnabled of
+                Nothing ->
+                    ( Ready { model | notificationsEnabled = Just False }, Notifications.requestPermissions () )
+
+                Just enabled ->
+                    ( Ready { model | notificationsEnabled = Just <| not enabled }, Cmd.none )
+
+        ( Ready model, OnNotificationPermissionChanged "granted" ) ->
+            case model.notificationsEnabled of
+                Nothing ->
+                    ( Ready { model | notificationsEnabled = Just False }, Cmd.none )
+
+                Just _ ->
+                    ( Ready { model | notificationsEnabled = Just True }, onActivity )
+
+        ( Ready model, OnActivity now ) ->
+            ( Ready { model | lastActivity = now }, Cmd.none )
 
         ( Ready model, NewWordChain wordChain ) ->
             let
@@ -181,15 +265,16 @@ update msg session =
                     wordChain |> List.foldl (\w d -> List.remove w d) model.dictionary
             in
             ( Ready
-                { dictionary = dictionary
-                , wordChain = wordChain
-                , answers = []
-                , currentInput = ""
-                , gameState = NotDone
-                , showPopupForCharacter = Nothing
-                , showTodoUpdate = Nothing
-                , showTodoUpdateTimer = 0
-                , showHelp = False
+                { model
+                    | dictionary = dictionary
+                    , wordChain = wordChain
+                    , answers = []
+                    , currentInput = ""
+                    , gameState = NotDone
+                    , showPopupForCharacter = Nothing
+                    , showTodoUpdate = Nothing
+                    , showTodoUpdateTimer = 0
+                    , showHelp = False
                 }
             , Storage.setStorage
                 { name = "dictionary"
@@ -210,6 +295,18 @@ update msg session =
                 { model | currentInput = txt }
             , Cmd.none
             )
+
+        ( Ready model, KeyboardInput char ) ->
+            ( Ready { model | currentInput = model.currentInput ++ char }, Cmd.none )
+
+        ( Ready model, KeyboardBackspace ) ->
+            ( Ready { model | currentInput = String.dropRight 1 model.currentInput }, Cmd.none )
+
+        ( Ready model, KeyboardClear ) ->
+            ( Ready { model | currentInput = "" }, Cmd.none )
+
+        ( Ready model, OnToggleScreenKeyboard ) ->
+            ( Ready { model | useScreenKeyboardOnMobile = not model.useScreenKeyboardOnMobile }, Cmd.none )
 
         ( Ready model, UserPressedEnter ) ->
             let
@@ -265,28 +362,52 @@ update msg session =
         ( Ready model, OnMouseLeaveCharacter ) ->
             ( Ready { model | showPopupForCharacter = Nothing }, Cmd.none )
 
-        ( Ready model, OnTick _ ) ->
-            if model.showTodoUpdateTimer > 0 then
-                ( Ready { model | showTodoUpdateTimer = model.showTodoUpdateTimer - 1 }, Cmd.none )
+        ( Ready model, OnTick now ) ->
+            let
+                withUpdateShowTodo m =
+                    if m.showTodoUpdateTimer > 0 then
+                        { m | showTodoUpdateTimer = m.showTodoUpdateTimer - 1 }
 
-            else
-                ( Ready { model | showTodoUpdate = Nothing }, Cmd.none )
+                    else
+                        { m | showTodoUpdate = Nothing }
+
+                withUpdateNotifications m =
+                    case m.notificationsEnabled of
+                        Just True ->
+                            if (Time.posixToMillis now - Time.posixToMillis m.lastActivity) > inactivityTime then
+                                ( { m | lastActivity = now }, Notifications.showNotification "Time for a CHORDLE!" )
+
+                            else
+                                ( m, Cmd.none )
+
+                        _ ->
+                            ( m, Cmd.none )
+            in
+            model
+                |> withUpdateShowTodo
+                |> withUpdateNotifications
+                |> liftModel Ready
 
         --
-        ( LoadingStorage, _ ) ->
+        ( LoadingDeviceType, _ ) ->
             ( session, Cmd.none )
 
-        ( Initializing _, _ ) ->
+        ( LoadingStorage _, _ ) ->
             ( session, Cmd.none )
 
-        ( Ready _, NoOp ) ->
+        ( Initializing _ _, _ ) ->
             ( session, Cmd.none )
 
-        ( Ready _, NoOpString _ ) ->
+        ( Ready _, _ ) ->
             ( session, Cmd.none )
 
-        ( Ready _, StorageLoaded _ ) ->
-            ( session, Cmd.none )
+
+onActivity =
+    Task.perform OnActivity Time.now
+
+
+liftModel fn ( model, cmd ) =
+    ( fn model, cmd )
 
 
 
@@ -298,16 +419,13 @@ subscriptions session =
     Sub.batch
         [ Storage.storageLoaded StorageLoaded
         , case session of
-            Ready { showTodoUpdate } ->
-                case showTodoUpdate of
-                    Just _ ->
-                        Time.every 1000 OnTick
-
-                    Nothing ->
-                        Sub.none
+            Ready _ ->
+                Time.every 1000 OnTick
 
             _ ->
                 Sub.none
+        , Notifications.permissionChanged OnNotificationPermissionChanged
+        , Browser.Events.onResize OnResizeViewport
         ]
 
 
@@ -320,42 +438,90 @@ view session =
     layoutWith { options = [ focusStyle { backgroundColor = Nothing, borderColor = Nothing, shadow = Nothing } ] } [ width fill, height fill ] <|
         case session of
             Ready model ->
-                column [ width fill, height fill ]
-                    [ viewTopBar model
-                    , row [ width fill, height fill, inFront <| Help.view model.showHelp OnToggleHelp NoOpString ]
-                        [ el [ height fill, width <| fillPortion 1 ] none
-                        , el [ height fill, width <| fillPortion 5 ] <|
-                            column [ centerX, centerY, spacing 50 ]
-                                [ column [ spacing 20, UI.floating, padding 40 ]
-                                    (List.indexedMap
-                                        (\wordId word ->
-                                            row [ width <| px 600, spacing 20 ]
-                                                [ el [ width <| fillPortion 1 ] <| viewWordAnswers model wordId word
-                                                , el [ width <| fillPortion 1 ] <| viewWordEnglish word
-                                                ]
-                                        )
-                                        model.wordChain
-                                    )
-                                , viewWrongAnwers <| allWrongAnswers model
-                                , case model.gameState of
-                                    NotDone ->
-                                        el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+                case model.device of
+                    Mobile ->
+                        viewMobile model
 
-                                    _ ->
-                                        el [ centerX, height <| px 40 ] none
-                                , case model.gameState of
-                                    NotDone ->
-                                        viewInput model
-
-                                    _ ->
-                                        UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
-                                ]
-                        , el [ height fill, width <| fillPortion 1 ] none
-                        ]
-                    ]
+                    Desktop ->
+                        viewDesktop model
 
             _ ->
                 UI.spinner
+
+
+viewMobile model =
+    column [ width fill, height fill ]
+        [ mobileViewTopBar model
+        , row [ width fill, height fill, inFront <| Help.viewMobile model.showHelp OnToggleHelp NoOpString ]
+            [ el [ height fill, width fill ] <|
+                column [ width fill, height fill, spacing 20, paddingXY 0 10 ]
+                    [ column [ width fill, height shrink, spacing 20, UI.floating, padding 10 ]
+                        (List.indexedMap
+                            (\wordId word ->
+                                row [ width fill, spacing 20 ]
+                                    [ el [ width <| fillPortion 1 ] <| viewWordAnswers model wordId word
+                                    , el [ width <| fillPortion 1 ] <| viewWordEnglishMobile word
+                                    ]
+                            )
+                            model.wordChain
+                        )
+                    , viewWrongAnwers <| allWrongAnswers model
+                    , case model.gameState of
+                        NotDone ->
+                            el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+
+                        _ ->
+                            el [ centerX, height <| px 40 ] none
+                    , case model.gameState of
+                        NotDone ->
+                            viewInput model
+
+                        _ ->
+                            UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
+                    , if model.useScreenKeyboardOnMobile then
+                        el [ alignBottom, width fill, height <| maximum 300 fill ] <| MobileUI.viewKeyboard KeyboardInput KeyboardBackspace KeyboardClear
+
+                      else
+                        none
+                    ]
+            ]
+        ]
+
+
+viewDesktop model =
+    column [ width fill, height fill ]
+        [ viewTopBar model
+        , row [ width fill, height fill, inFront <| Help.viewDesktop model.showHelp OnToggleHelp NoOpString ]
+            [ el [ height fill, width <| fillPortion 1 ] none
+            , el [ height fill, width <| fillPortion 5 ] <|
+                column [ centerX, centerY, spacing 50 ]
+                    [ column [ spacing 20, UI.floating, padding 40 ]
+                        (List.indexedMap
+                            (\wordId word ->
+                                row [ width <| px 600, spacing 20 ]
+                                    [ el [ width <| fillPortion 1 ] <| viewWordAnswers model wordId word
+                                    , el [ width <| fillPortion 1 ] <| viewWordEnglish word
+                                    ]
+                            )
+                            model.wordChain
+                        )
+                    , viewWrongAnwers <| allWrongAnswers model
+                    , case model.gameState of
+                        NotDone ->
+                            el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+
+                        _ ->
+                            el [ centerX, height <| px 40 ] none
+                    , case model.gameState of
+                        NotDone ->
+                            viewInput model
+
+                        _ ->
+                            UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
+                    ]
+            , el [ height fill, width <| fillPortion 1 ] none
+            ]
+        ]
 
 
 viewTopBar : Model -> Element Msg
@@ -396,9 +562,64 @@ viewTopBar model =
                 UI.niceTextWith [ Font.color UI.white ] <|
                     "Words to go: "
                         ++ (String.fromInt <| List.length model.dictionary)
+        , UI.niceButton
+            (case model.notificationsEnabled of
+                Nothing ->
+                    "Enable Notifications"
+
+                Just True ->
+                    "Disable Notifications"
+
+                Just False ->
+                    "Enable Notifications"
+            )
+            OnToggleNotifications
+            Nothing
         , UI.niceButton "Help" OnToggleHelp Nothing
             |> el [ alignRight ]
             |> el [ width <| fillPortion 1 ]
+        ]
+
+
+mobileViewTopBar : Model -> Element Msg
+mobileViewTopBar model =
+    row [ height <| px 50, width fill, Background.color UI.accentColor ]
+        [ el [ width fill ] <|
+            el
+                [ centerX
+                , onRight <|
+                    el [] <|
+                        case model.showTodoUpdate of
+                            Nothing ->
+                                text <| ""
+
+                            Just u ->
+                                el
+                                    [ Font.color <|
+                                        if u < 0 then
+                                            UI.correctColor
+
+                                        else
+                                            UI.errorColor
+                                    , Font.bold
+                                    ]
+                                <|
+                                    text <|
+                                        "  "
+                                            ++ (if u > 0 then
+                                                    "+"
+
+                                                else
+                                                    ""
+                                               )
+                                            ++ String.fromInt u
+                ]
+            <|
+                MobileUI.niceTextWith [ Font.color UI.white ] <|
+                    "Words to go: "
+                        ++ (String.fromInt <| List.length model.dictionary)
+        , MobileUI.simpleIconButtonInverted (Icons.questionmark 20) OnToggleHelp
+            |> el [ alignRight ]
         ]
 
 
@@ -413,6 +634,13 @@ viewWordEnglish word =
     word.english
         |> String.split "|"
         |> List.map (\txt -> paragraph [] [ text txt ])
+        |> column [ spacing 5, alignLeft ]
+
+
+viewWordEnglishMobile word =
+    word.english
+        |> String.split "|"
+        |> List.map (\txt -> paragraph [ Font.size 16 ] [ text txt ])
         |> column [ spacing 5, alignLeft ]
 
 
@@ -535,41 +763,47 @@ viewSingleHanzi model wordId id character =
 
 viewInput : Model -> Element Msg
 viewInput model =
-    row
-        [ width fill
-        , Border.widthEach
-            { top = 0
-            , left = 0
-            , right = 0
-            , bottom = 2
-            }
-        , spacing 20
-        ]
-        [ Input.text
-            [ onEnter UserPressedEnter
-            , htmlAttribute <| Html.Attributes.id idInput
-            , Border.width 0
+    el [ width fill, padding 10 ] <|
+        row
+            [ width fill
+            , Border.widthEach
+                { top = 0
+                , left = 0
+                , right = 0
+                , bottom = 2
+                }
+            , spacing 20
             ]
-            { onChange = InputHanzi
-            , text = model.currentInput
-            , placeholder = Just <| Input.placeholder [ Font.size 14 ] <| text "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK' or the Enter key"
-            , label = Input.labelHidden ""
-            }
-        , Input.button
-            [ mouseOver [ Font.color UI.accentColorHighlight ]
-            , Font.color UI.accentColor
-            , Background.color UI.white
-            , width shrink
-            , height <| px 40
-            , width <| px 40
-            , Border.rounded 10
+            [ if model.device == Desktop then
+                Input.text
+                    [ onEnter UserPressedEnter
+                    , htmlAttribute <| Html.Attributes.id idInput
+                    , Border.width 0
+                    ]
+                    { onChange = InputHanzi
+                    , text = model.currentInput
+                    , placeholder = Just <| Input.placeholder [ Font.size 14 ] <| text "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK' or the Enter key"
+                    , label = Input.labelHidden ""
+                    }
+
+              else
+                text model.currentInput
+            , Input.button
+                [ mouseOver [ Font.color UI.accentColorHighlight ]
+                , Font.color UI.accentColor
+                , Background.color UI.white
+                , width shrink
+                , height <| px 40
+                , width <| px 40
+                , Border.rounded 10
+                , alignRight
+                ]
+                { onPress = Just UserPressedEnter
+                , label =
+                    el [ centerY, centerX, paddingXY 20 0, spacing 20 ] <|
+                        text "Ok"
+                }
             ]
-            { onPress = Just UserPressedEnter
-            , label =
-                el [ centerY, centerX, paddingXY 20 0, spacing 20 ] <|
-                    text "Ok"
-            }
-        ]
 
 
 viewWrongAnwers : List PinyinPart -> Element Msg
@@ -719,7 +953,12 @@ processGameFinished model =
                 , showTodoUpdate = Just -(List.length model.wordChain)
                 , showTodoUpdateTimer = 2
               }
-            , focusNextBtn
+            , case ( model.device, model.useScreenKeyboardOnMobile ) of
+                ( Mobile, True ) ->
+                    Cmd.none
+
+                _ ->
+                    focusNextBtn
             )
 
         else
