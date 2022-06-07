@@ -94,7 +94,7 @@ niceButtonWith attr text onClick mIcon =
         )
         { onPress = Just onClick
         , label =
-            row [ width fill, height fill, paddingXY 20 0, spacing (mIcon |> Maybe.map (\_ -> 20) |> Maybe.withDefault 0) ]
+            row [ width fill, height fill, paddingXY 20 0, spacing (mIcon |> Maybe.map (\_ -> 10) |> Maybe.withDefault 0) ]
                 [ el [ centerY ] <|
                     case mIcon of
                         Nothing ->
@@ -274,3 +274,33 @@ cursorClick size =
                     ]
                     []
                 ]
+
+
+modal toggleMsg content =
+    el
+        [ width fill
+        , height fill
+        , behindContent <|
+            el
+                [ width fill
+                , height fill
+                , alpha 0.5
+                , Element.Background.color white
+                , Element.Events.onClick toggleMsg
+                ]
+                none
+        ]
+    <|
+        el [ padding 50, width fill, height fill ] <|
+            column
+                [ centerX
+                , centerY
+
+                --, width fill
+                , height fill
+                , padding 40
+                , Element.Background.color accentColorLight
+                , spacing 20
+                , rounded 10
+                ]
+                content

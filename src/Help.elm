@@ -15,32 +15,10 @@ import Words exposing (allWords)
 viewDesktop : Bool -> msg -> (String -> msg) -> Element msg
 viewDesktop showHelp toggleMsg noOpMsg =
     if showHelp then
-        el
-            [ width fill
-            , height fill
-            , behindContent <|
-                el
-                    [ width fill
-                    , height fill
-                    , alpha 0.5
-                    , Background.color UI.white
-                    , Element.Events.onClick toggleMsg
-                    ]
-                    none
-            ]
-        <|
-            column
-                [ centerX
-                , centerY
-                , width <| minimum 500 shrink
-                , height <| minimum 500 shrink
-                , padding 40
-                , Background.color UI.accentColorLight
-                , spacing 20
-                , UI.rounded 10
-                ]
-                [ el [] <| UI.heading "How to play?"
-                , column [ spacing 3, width fill ]
+        UI.modal toggleMsg
+            [ el [] <| UI.heading "How to play?"
+            , column [ scrollbarY, height fill, spacing 10 ]
+                [ column [ spacing 3, width fill ]
                     [ text "1. Write pinyin and tones in the input box"
                     , text "    on the bottom, like this:"
                     , el [ width fill, paddingXY 40 0 ] <|
@@ -151,10 +129,12 @@ viewDesktop showHelp toggleMsg noOpMsg =
                     [ text "5. Now press 'Next' to go to the next round of words"
                     ]
                 , column [ paddingXY 0 10 ]
-                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length allWords) ++ " words." ]
-                , paragraph [ paddingXY 0 10 ]
-                    [ text "To enable notifications every 30 minutes, press the \"Enable Notifications\" button." ]
+                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length allWords) ++ " words!" ]
+
+                --, paragraph [ paddingXY 0 10 ]
+                --[ text "To enable notifications every 30 minutes, press the \"Enable Notifications\" button." ]
                 ]
+            ]
 
     else
         none

@@ -68,6 +68,7 @@ type Msg
     | OnRestartDictionaryClick
     | OnToggleHelp
     | OnToggleScreenKeyboard
+    | OnToggleDictionaryModal
       --
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
@@ -121,6 +122,7 @@ type alias Model =
     , showTodoUpdate : Maybe Int
     , showTodoUpdateTimer : Int
     , showHelp : Bool
+    , showDictionaryModal : Bool
 
     --
     , useScreenKeyboardOnMobile : Bool
@@ -160,24 +162,22 @@ update msg session =
         ( LoadingDeviceType, OnGetViewport { viewport } ) ->
             let
                 device =
-                    case (classifyDevice { width = floor viewport.width, height = floor viewport.height }).class of
-                        Phone ->
-                            Mobile
+                    if viewport.width < 1200 then
+                        Mobile
 
-                        _ ->
-                            Desktop
+                    else
+                        Desktop
             in
             ( LoadingStorage device, Storage.loadStorage "dictionary" )
 
         ( Ready model, OnResizeViewport width height ) ->
             let
                 device =
-                    case (classifyDevice { width = width, height = height }).class of
-                        Phone ->
-                            Mobile
+                    if width < 1200 then
+                        Mobile
 
-                        _ ->
-                            Desktop
+                    else
+                        Desktop
             in
             ( Ready { model | device = device }, Cmd.none )
 
@@ -216,6 +216,7 @@ update msg session =
                 , showTodoUpdate = Nothing
                 , showTodoUpdateTimer = 0
                 , showHelp = False
+                , showDictionaryModal = False
                 , notificationsEnabled = Nothing
                 , lastActivity = Time.millisToPosix 0
                 , useScreenKeyboardOnMobile = True
@@ -355,6 +356,9 @@ update msg session =
         ( Ready model, OnToggleHelp ) ->
             ( Ready { model | showHelp = not model.showHelp }, Cmd.none )
 
+        ( Ready model, OnToggleDictionaryModal ) ->
+            ( Ready { model | showDictionaryModal = not model.showDictionaryModal }, Cmd.none )
+
         --
         ( Ready model, OnMouseEnterCharacter id ) ->
             ( Ready { model | showPopupForCharacter = Just id }, Cmd.none )
@@ -450,9 +454,29 @@ view session =
 
 
 viewMobile model =
+    let
+        modals =
+            el
+                [ width fill
+                , height fill
+                , inFront <|
+                    if model.showDictionaryModal then
+                        UI.modal OnToggleDictionaryModal
+                            [ el [] <| UI.heading "Dictionary"
+                            , model.dictionary
+                                |> List.map (\word -> word.characters |> List.map .hanzi |> String.join "," |> text)
+                                |> column [ scrollbarY ]
+                            ]
+
+                    else
+                        none
+                ]
+            <|
+                Help.viewMobile model.showHelp OnToggleHelp NoOpString
+    in
     column [ width fill, height fill ]
         [ mobileViewTopBar model
-        , row [ width fill, height fill, inFront <| Help.viewMobile model.showHelp OnToggleHelp NoOpString ]
+        , row [ width fill, height fill, inFront modals ]
             [ el [ height fill, width fill ] <|
                 column [ width fill, height fill, spacing 20, paddingXY 0 10 ]
                     [ column [ width fill, height shrink, spacing 20, UI.floating, padding 10 ]
@@ -489,9 +513,36 @@ viewMobile model =
 
 
 viewDesktop model =
+    let
+        modals =
+            row [ width fill, height fill ]
+                [ if model.showDictionaryModal then
+                    UI.modal OnToggleDictionaryModal
+                        [ el [] <| UI.heading "Dictionary"
+                        , model.dictionary
+                            |> List.map
+                                (\word ->
+                                    word.characters
+                                        |> List.map .hanzi
+                                        |> String.join ""
+                                        |> (\hanzi ->
+                                                row [ width fill, spacing 20 ]
+                                                    [ paragraph [ width <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
+                                                    , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text word.english ]
+                                                    ]
+                                           )
+                                )
+                            |> column [ scrollbarY, height fill, width fill, padding 10, spacing 10 ]
+                        ]
+
+                  else
+                    none
+                , Help.viewDesktop model.showHelp OnToggleHelp NoOpString
+                ]
+    in
     column [ width fill, height fill ]
         [ viewTopBar model
-        , row [ width fill, height fill, inFront <| Help.viewDesktop model.showHelp OnToggleHelp NoOpString ]
+        , row [ width fill, height fill, inFront modals ]
             [ el [ height fill, width <| fillPortion 1 ] none
             , el [ height fill, width <| fillPortion 5 ] <|
                 column [ centerX, centerY, spacing 50 ]
@@ -524,60 +575,65 @@ viewDesktop model =
         ]
 
 
+viewLogo =
+    el [ width fill, height fill ] <|
+        el [ centerX, centerY, Font.color UI.white, Font.bold ] <|
+            text "Chordle"
+
+
 viewTopBar : Model -> Element Msg
 viewTopBar model =
-    row [ height <| px 50, width fill, Background.color UI.accentColor, paddingXY 20 0 ]
-        [ el [ width <| fillPortion 1, alignRight ] <| UI.niceButton "Restart Game" OnRestartDictionaryClick Nothing
-        , el [ width <| fillPortion 5 ] <|
-            el
-                [ centerX
-                , onRight <|
-                    el [] <|
-                        case model.showTodoUpdate of
-                            Nothing ->
-                                text <| ""
+    row [ height <| px 50, width fill, Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent viewLogo ]
+        [ el
+            [ alignLeft
+            , onRight <|
+                el [] <|
+                    case model.showTodoUpdate of
+                        Nothing ->
+                            text <| ""
 
-                            Just u ->
-                                el
-                                    [ Font.color <|
-                                        if u < 0 then
-                                            UI.correctColor
+                        Just u ->
+                            el
+                                [ Font.color <|
+                                    if u < 0 then
+                                        UI.correctColor
 
-                                        else
-                                            UI.errorColor
-                                    , Font.bold
-                                    ]
-                                <|
-                                    text <|
-                                        "  "
-                                            ++ (if u > 0 then
-                                                    "+"
+                                    else
+                                        UI.errorColor
+                                , Font.bold
+                                ]
+                            <|
+                                text <|
+                                    "  "
+                                        ++ (if u > 0 then
+                                                "+"
 
-                                                else
-                                                    ""
-                                               )
-                                            ++ String.fromInt u
-                ]
-            <|
-                UI.niceTextWith [ Font.color UI.white ] <|
-                    "Words to go: "
-                        ++ (String.fromInt <| List.length model.dictionary)
-        , UI.niceButton
-            (case model.notificationsEnabled of
-                Nothing ->
-                    "Enable Notifications"
+                                            else
+                                                ""
+                                           )
+                                        ++ String.fromInt u
+            ]
+          <|
+            UI.niceTextWith [ Font.color UI.white ] <|
+                "Words to go: "
+                    ++ (String.fromInt <| List.length model.dictionary)
+        , el [ alignLeft ] <| UI.niceButton "Restart Game" OnRestartDictionaryClick (Just <| Icons.refresh 20)
+        , el [ alignRight ] <|
+            UI.niceButton
+                (case model.notificationsEnabled of
+                    Nothing ->
+                        "Notifications"
 
-                Just True ->
-                    "Disable Notifications"
+                    Just True ->
+                        "Disable Notifications"
 
-                Just False ->
-                    "Enable Notifications"
-            )
-            OnToggleNotifications
-            Nothing
-        , UI.niceButton "Help" OnToggleHelp Nothing
-            |> el [ alignRight ]
-            |> el [ width <| fillPortion 1 ]
+                    Just False ->
+                        "Enable Notifications"
+                )
+                OnToggleNotifications
+                (Just <| Icons.bell 20)
+        , UI.niceButton "Dictionary" OnToggleDictionaryModal (Just <| Icons.translate 20)
+        , UI.niceButton "Help" OnToggleHelp (Just <| Icons.questionmark 20)
         ]
 
 
@@ -782,7 +838,17 @@ viewInput model =
                     ]
                     { onChange = InputHanzi
                     , text = model.currentInput
-                    , placeholder = Just <| Input.placeholder [ Font.size 14 ] <| text "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK' or the Enter key"
+                    , placeholder =
+                        Just <|
+                            Input.placeholder [ Font.size 14 ] <|
+                                text <|
+                                    "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
+                                        ++ (if isOnDesktop model then
+                                                " or the Enter key"
+
+                                            else
+                                                ""
+                                           )
                     , label = Input.labelHidden ""
                     }
 
@@ -828,6 +894,19 @@ viewWrongAnwers wrongAnswers =
 
 
 --
+
+
+isOnDesktop model =
+    case model.device of
+        Mobile ->
+            False
+
+        Desktop ->
+            True
+
+
+isOnMobile model =
+    not <| isOnDesktop model
 
 
 wordChainGenerator : List Word -> Random.Generator WordChain
