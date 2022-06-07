@@ -123,6 +123,7 @@ type alias Model =
     , showTodoUpdateTimer : Int
     , showHelp : Bool
     , showDictionaryModal : Bool
+    , unhideDictionary : Bool
 
     --
     , useScreenKeyboardOnMobile : Bool
@@ -217,6 +218,7 @@ update msg session =
                 , showTodoUpdateTimer = 0
                 , showHelp = False
                 , showDictionaryModal = False
+                , unhideDictionary = False
                 , notificationsEnabled = Nothing
                 , lastActivity = Time.millisToPosix 0
                 , useScreenKeyboardOnMobile = True
@@ -459,17 +461,17 @@ viewMobile model =
             el
                 [ width fill
                 , height fill
-                , inFront <|
-                    if model.showDictionaryModal then
-                        UI.modal OnToggleDictionaryModal
-                            [ el [] <| UI.heading "Dictionary"
-                            , model.dictionary
-                                |> List.map (\word -> word.characters |> List.map .hanzi |> String.join "," |> text)
-                                |> column [ scrollbarY ]
-                            ]
 
-                    else
-                        none
+                --, inFront <|
+                --    if model.showDictionaryModal then
+                --        UI.modal OnToggleDictionaryModal
+                --            [ el [] <| UI.heading "Dictionary"
+                --            , model.dictionary
+                --                |> List.map (\word -> word.characters |> List.map .hanzi |> String.join "," |> text)
+                --                |> column [ scrollbarY ]
+                --            ]
+                --    else
+                --        none
                 ]
             <|
                 Help.viewMobile model.showHelp OnToggleHelp NoOpString
@@ -519,16 +521,35 @@ viewDesktop model =
                 [ if model.showDictionaryModal then
                     UI.modal OnToggleDictionaryModal
                         [ el [] <| UI.heading "Dictionary"
-                        , model.dictionary
+                        , Words.allWords
                             |> List.map
                                 (\word ->
-                                    word.characters
-                                        |> List.map .hanzi
-                                        |> String.join ""
-                                        |> (\hanzi ->
-                                                row [ width fill, spacing 20 ]
+                                    Words.wordToStringParts word
+                                        |> (\( hanzi, pinyin, english ) ->
+                                                let
+                                                    wordAlreadyDone =
+                                                        not <| List.member word model.dictionary
+
+                                                    maybeHide str =
+                                                        if model.unhideDictionary || wordAlreadyDone then
+                                                            str
+
+                                                        else
+                                                            "."
+                                                in
+                                                row
+                                                    [ width fill
+                                                    , spacing 20
+                                                    , Font.color <|
+                                                        if wordAlreadyDone then
+                                                            UI.correctColor
+
+                                                        else
+                                                            UI.black
+                                                    ]
                                                     [ paragraph [ width <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
-                                                    , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text word.english ]
+                                                    , paragraph [ width <| fillPortion 2, Font.size 16, Font.center ] [ text <| maybeHide pinyin ]
+                                                    , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text <| maybeHide english ]
                                                     ]
                                            )
                                 )

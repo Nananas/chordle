@@ -34,6 +34,21 @@ type alias Word =
     }
 
 
+wordToStringParts : Word -> ( String, String, String )
+wordToStringParts word =
+    let
+        hanzi =
+            word.characters |> List.map .hanzi |> String.join ""
+
+        pinyin =
+            word.characters |> List.map (.pinyinPart >> formatPinyin) |> String.join ""
+
+        english =
+            word.english
+    in
+    ( hanzi, pinyin, english )
+
+
 charToTone : Char -> Maybe Tone
 charToTone c =
     case String.fromList [ c ] |> String.toInt |> Maybe.withDefault 0 of
