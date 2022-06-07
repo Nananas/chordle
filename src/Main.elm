@@ -69,6 +69,7 @@ type Msg
     | OnToggleHelp
     | OnToggleScreenKeyboard
     | OnToggleDictionaryModal
+    | OnToggleDictionaryShowAllWords
       --
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
@@ -361,6 +362,9 @@ update msg session =
         ( Ready model, OnToggleDictionaryModal ) ->
             ( Ready { model | showDictionaryModal = not model.showDictionaryModal }, Cmd.none )
 
+        ( Ready model, OnToggleDictionaryShowAllWords ) ->
+            ( Ready { model | unhideDictionary = not model.unhideDictionary }, Cmd.none )
+
         --
         ( Ready model, OnMouseEnterCharacter id ) ->
             ( Ready { model | showPopupForCharacter = Just id }, Cmd.none )
@@ -520,7 +524,25 @@ viewDesktop model =
             row [ width fill, height fill ]
                 [ if model.showDictionaryModal then
                     UI.modal OnToggleDictionaryModal
-                        [ el [] <| UI.heading "Dictionary"
+                        [ row [ width fill ]
+                            [ el [ alignLeft ] <| UI.heading "Dictionary"
+                            , el [ alignRight ] <|
+                                UI.niceButton
+                                    (if model.unhideDictionary then
+                                        "Hide all words"
+
+                                     else
+                                        "Show all words"
+                                    )
+                                    OnToggleDictionaryShowAllWords
+                                    (Just <|
+                                        if model.unhideDictionary then
+                                            Icons.eyeOff 20
+
+                                        else
+                                            Icons.eye 20
+                                    )
+                            ]
                         , Words.allWords
                             |> List.map
                                 (\word ->
