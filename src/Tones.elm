@@ -85,6 +85,7 @@ tones part =
     , String.replace "eng2" "éng"
     , String.replace "eng3" "ěng"
     , String.replace "eng4" "èng"
+    , String.replace "eng5" "ēng"
     , String.replace "in1" "īn"
     , String.replace "in2" "ín"
     , String.replace "in3" "ǐn"

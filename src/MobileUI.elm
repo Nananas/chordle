@@ -9,6 +9,7 @@ import Element.Input
 import Html
 import Html.Attributes
 import Html.Events
+import Icons
 import Svg
 import Svg.Attributes
 import UI
@@ -224,10 +225,18 @@ cursorClick size =
 
 
 keys =
-    [ [ "1", "2", "3", "4", "5" ]
-    , [ "q", "w", "e", "r", "t", "y", "u", "i", "o", "p" ]
+    [ [ "q", "w", "e", "r", "t", "y", "u", "i", "o", "p" ]
     , [ "a", "s", "d", "f", "g", "h", "j", "k", "l" ]
     , [ "z", "x", "c", "v", "b", "n", "m" ]
+    ]
+
+
+tones =
+    [ ( Icons.firstTone, "1" )
+    , ( Icons.secondTone, "2" )
+    , ( Icons.thirdTone, "3" )
+    , ( Icons.forthTone, "4" )
+    , ( Icons.fifthTone, "5" )
     ]
 
 
@@ -250,6 +259,22 @@ viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
                                 }
                         )
                     |> Element.row [ spacing 4, width fill, height fill ]
+            )
+        |> (::)
+            (Element.row [ spacing 4, width fill, height fill ] <|
+                List.map
+                    (\( icon, ch ) ->
+                        Element.Input.button
+                            [ UI.floating
+                            , width fill
+                            , height fill
+                            , mouseOver [ Element.Background.color UI.accentColorLight ]
+                            ]
+                            { onPress = Just <| onCharMsg ch
+                            , label = el [ centerX, centerY ] <| icon 20
+                            }
+                    )
+                    tones
             )
         |> (::)
             (Element.row [ spacing 4, width fill, height fill ]
