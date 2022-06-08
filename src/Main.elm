@@ -569,7 +569,7 @@ viewDesktop model =
                                                         else
                                                             UI.black
                                                     ]
-                                                    [ paragraph [ width <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
+                                                    [ paragraph [ width <| minimum 100 <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
                                                     , paragraph [ width <| fillPortion 2, Font.size 16, Font.center ] [ text <| maybeHide pinyin ]
                                                     , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text <| maybeHide english ]
                                                     ]
