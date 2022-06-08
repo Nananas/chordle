@@ -291,16 +291,15 @@ modal toggleMsg content =
                 none
         ]
     <|
-        el [ padding 50, width fill, height fill ] <|
+        el [ padding 50, width fill, height fill, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ] <|
             column
                 [ centerX
                 , centerY
-
-                --, width fill
                 , height fill
                 , padding 40
                 , Element.Background.color accentColorLight
                 , spacing 20
                 , rounded 10
+                , htmlAttribute <| Html.Attributes.style "pointer-events" "auto"
                 ]
                 content
