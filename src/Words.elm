@@ -285,7 +285,7 @@ allWords =
     , newWord "从" "cong2" "PREPOSITION: from, as in from... to..."
     , newWord "到" "dao4" "PREPOSITION: to, as in from... to..."
     , newWord "错" "cuo4" "ADJECTIVE: wrong, erroneous"
-    , newWord "打" "da3" "VERB: to play"
+    , newWord "打" "da3" "VERB: to play (e.g. basketball)"
     , newWord "打包" "da3//bao1" "VERB PLUS OBJECT: to pack"
     , newWord "打的" "da3//di2" "VERB PLUS OBJECT: to hail a taxi"
     , newWord "打工" "da3//gong1" "VERB PLUS OBJECT: to do manual work for somebody, to have a part-time job"
@@ -879,4 +879,5 @@ allWords =
     , newWord "夜里" "ye4li3" "NOUN: at night"
     , newWord "笑" "xiao4" "VERB: smile, laugh"
     , newWord "周末" "zhou1mo4" "NOUN: the weekend"
+    , newWord "玩" "wan2" "VERB: play, have fun"
     ]
