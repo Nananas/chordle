@@ -421,7 +421,7 @@ allWords =
     , newWord "化学" "hua4xue2" "NOUN: chemistry"
     , newWord "换" "huan4" "VERB: to exchange, to change"
     , newWord "黄" "huang2" "ADJECTIVE: yellow"
-    , newWord "黄色" "huang2se4" "NOUN: yellow (colou)|ADJECTIVE: decadent, obscene, pornographic"
+    , newWord "黄色" "huang2se4" "NOUN: yellow (color)|ADJECTIVE: decadent, obscene, pornographic"
     , newWord "回" "hui2" "VERB: to return"
     , newWord "回答" "hui2da2" "VERB: to answer"
     , newWord "回信" "hui2xin4" "NOUN: reply letter|VERB PLUS OBJECT: to reply (in writing)"
