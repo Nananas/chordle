@@ -73,6 +73,7 @@ tones part =
     , String.replace "an2" "án"
     , String.replace "an3" "ǎn"
     , String.replace "an4" "àn"
+    , String.replace "an5" "ān"
     , String.replace "ang1" "āng"
     , String.replace "ang2" "áng"
     , String.replace "ang3" "ǎng"
