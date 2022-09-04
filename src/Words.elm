@@ -809,7 +809,7 @@ allWords =
     , newWord "语言" "yu3yan2" "NOUN: language"
     , newWord "预订" "yu4ding4" "VERB: to reserve, to book"
     , newWord "愿意" "yuan4yi4" "OPTATIVE VERB: to be willing, to be ready"
-    , newWord "阅览室" "yue4lan3shi4" "NOUN: reading room"
+    , newWord "阅览室" "yue4lan3shi4" "NOUN: reading room, eg. in a library"
     , newWord "云" "yun2" "NOUN: cloud"
     , newWord "杂志" "za2zhi4" "NOUN: magazine"
     , newWord "再" "zai4" "ADVERB: again"
