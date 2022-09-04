@@ -708,7 +708,7 @@ viewDesktop model =
                 , Help.viewDesktop model.showHelp OnToggleHelp NoOpString
                 ]
     in
-    column [ width fill, height fill ]
+    column [ width fill, height fill, inFront viewFooter ]
         [ viewTopBar model
         , row [ width fill, height fill, inFront modals ]
             [ el [ height fill, width <| fillPortion 1 ] none
@@ -747,6 +747,11 @@ viewLogo =
     el [ width fill, height fill ] <|
         el [ centerX, centerY, Font.color UI.white, Font.bold ] <|
             text "Chordle"
+
+
+viewFooter =
+    el [ alignRight, alignBottom, padding 10 ] <|
+        newTabLink [] { url = "https://github.com/Nananas/chordle", label = UI.simpleIconButton (Icons.github 32) NoOp }
 
 
 viewTopBar : Model -> Element Msg
