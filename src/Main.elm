@@ -10,6 +10,7 @@ import Element.Border as Border
 import Element.Events
 import Element.Font as Font
 import Element.Input as Input
+import Element.Lazy
 import Help
 import Html
 import Html.Attributes
@@ -719,8 +720,16 @@ viewDesktop model =
 
 
 viewDictionaryModal model =
+    let
+        modalFn =
+            if isOnDesktop model then
+                UI.modal
+
+            else
+                MobileUI.modal
+    in
     if model.showDictionaryModal then
-        MobileUI.modal OnToggleDictionaryModal
+        modalFn OnToggleDictionaryModal
             [ row [ width <| minimum 400 fill ]
                 [ el [ alignLeft ] <| UI.heading "Dictionary"
                 , el [ alignRight ] <|
@@ -835,9 +844,7 @@ viewTopBar model =
                                         ++ String.fromInt u
             ]
           <|
-            UI.niceTextWith [ Font.color UI.white ] <|
-                "Words to go: "
-                    ++ (String.fromInt <| wordsToGo model.dictsActive model.wordsFound)
+            Element.Lazy.lazy2 viewWordsToGo model.dictsActive model.wordsFound
         , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh 20)
 
         --, el [ alignRight ] <|
@@ -855,6 +862,12 @@ viewTopBar model =
         , el [ alignRight ] <| buttonFn "Dictionaries" OnToggleDictionaryModal (Icons.translate 20)
         , buttonFn "Help" OnToggleHelp (Icons.questionmark 20)
         ]
+
+
+viewWordsToGo dictsActive wordsFound =
+    UI.niceTextWith [ Font.color UI.white ] <|
+        "Words to go: "
+            ++ (String.fromInt <| wordsToGo dictsActive wordsFound)
 
 
 mobileViewTopBar : Model -> Element Msg
