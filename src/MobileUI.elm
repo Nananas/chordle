@@ -299,3 +299,35 @@ viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
                 ]
             )
         |> Element.column [ spacing 4, width fill, height fill ]
+
+
+modal toggleMsg content =
+    el
+        [ width fill
+        , height fill
+        , Element.Font.size 14
+        , behindContent <|
+            el
+                [ width fill
+                , height fill
+                , alpha 0.5
+                , Element.Background.color UI.white
+                , Element.Events.onClick toggleMsg
+                ]
+                none
+        ]
+    <|
+        column
+            --[ width fill, height fill, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ] <|
+            [ centerX
+            , centerY
+            , height fill
+            , width fill
+            , padding 20
+            , Element.Background.color UI.accentColorLight
+            , spacing 20
+            , htmlAttribute <| Html.Attributes.style "pointer-events" "auto"
+            ]
+            (content
+                ++ [ el [ alignBottom, centerX ] <| niceButton "Close" toggleMsg Nothing ]
+            )

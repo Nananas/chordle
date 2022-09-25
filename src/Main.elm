@@ -3,6 +3,7 @@ module Main exposing (..)
 import Browser
 import Browser.Dom
 import Browser.Events
+import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
@@ -22,6 +23,7 @@ import Notifications
 import Process
 import Random
 import Random.List
+import Set
 import Storage
 import String.Extra as String
 import Task
@@ -29,6 +31,14 @@ import Time
 import Tones exposing (..)
 import UI
 import Words exposing (..)
+
+
+minDesktopViewportWidth =
+    800
+
+
+maxSmallDesktopViewportWidth =
+    1200
 
 
 inactivityTime =
@@ -69,6 +79,7 @@ type Msg
     | OnToggleScreenKeyboard
     | OnToggleDictionaryModal
     | OnToggleDictionaryShowAllWords
+    | OnToggleDictionaryActive String
     | OnRestartClick
       --
     | OnMouseEnterCharacter ( Int, Int )
@@ -93,7 +104,7 @@ type Msg
 type Session
     = LoadingDeviceType
     | LoadingGameStatsFromStorage Device
-    | LoadingWordsFoundFromStorage (Maybe GameStats) Device
+    | LoadingWordsFoundFromStorage GameStats Device
     | Initializing (List Word) GameStats Device
     | Ready Model
     | GameFinished Model
@@ -119,6 +130,7 @@ type alias Model =
     , showHelp : Bool
     , showDictionaryModal : Bool
     , unhideDictionary : Bool
+    , dictsActive : Dict String Bool
 
     --
     , useScreenKeyboardOnMobile : Bool
@@ -132,6 +144,7 @@ type alias Model =
 
 type Device
     = Mobile
+    | DesktopSmall
     | Desktop
 
 
@@ -146,19 +159,19 @@ type GameState
 
 
 type alias GameStats =
-    { dictionarySize : Int
+    { correct : Int
     , attempts : Int
     , retries : Int
     }
 
 
 defaultGameStats =
-    { dictionarySize = 0, attempts = 0, retries = 0 }
+    { correct = 0, attempts = 0, retries = 0 }
 
 
 encodeGameStats gameStats =
     Json.Encode.object
-        [ ( "dictionary-size", Json.Encode.int gameStats.dictionarySize )
+        [ ( "correct", Json.Encode.int gameStats.correct )
         , ( "attempts", Json.Encode.int gameStats.attempts )
         , ( "retries", Json.Encode.int gameStats.retries )
         ]
@@ -178,6 +191,10 @@ withDictionarySize size stats =
 
 withAddAttempts attemptsDelta stats =
     { stats | attempts = attemptsDelta + stats.attempts }
+
+
+withAddOneCorrect stats =
+    { stats | correct = stats.correct + 1 }
 
 
 withAddRetries retriesDelta stats =
@@ -206,7 +223,7 @@ update msg session =
         ( LoadingDeviceType, OnGetViewport { viewport } ) ->
             let
                 device =
-                    if viewport.width < 1200 then
+                    if viewport.width < minDesktopViewportWidth then
                         Mobile
 
                     else
@@ -222,12 +239,12 @@ update msg session =
             in
             case gameStats of
                 Err _ ->
-                    ( LoadingWordsFoundFromStorage Nothing device, Storage.loadStorage "words-found" )
+                    ( LoadingWordsFoundFromStorage defaultGameStats device, Storage.loadStorage "words-found" )
 
                 Ok stats ->
-                    ( LoadingWordsFoundFromStorage (Just stats) device, Storage.loadStorage "words-found" )
+                    ( LoadingWordsFoundFromStorage stats device, Storage.loadStorage "words-found" )
 
-        ( LoadingWordsFoundFromStorage mGameStats device, StorageLoaded storage ) ->
+        ( LoadingWordsFoundFromStorage gameStats device, StorageLoaded storage ) ->
             let
                 words : List String
                 words =
@@ -246,17 +263,9 @@ update msg session =
                                 )
                                 words
                         )
-                        allWords
-
-                gameStats =
-                    case mGameStats of
-                        Nothing ->
-                            GameStats (List.length allWords) 0 0
-
-                        Just gs ->
-                            gs
+                        (allWords Dict.empty)
             in
-            if List.length wordsFound == List.length allWords then
+            if List.length wordsFound == List.length (allWords Dict.empty) then
                 ( GameFinished
                     { device = device
                     , wordsFound = wordsFound
@@ -270,6 +279,7 @@ update msg session =
                     , showHelp = False
                     , showDictionaryModal = False
                     , unhideDictionary = False
+                    , dictsActive = Dict.empty
                     , notificationsEnabled = Nothing
                     , lastActivity = Time.millisToPosix 0
                     , useScreenKeyboardOnMobile = True
@@ -296,6 +306,7 @@ update msg session =
                 , showHelp = False
                 , showDictionaryModal = False
                 , unhideDictionary = False
+                , dictsActive = Dict.empty
                 , notificationsEnabled = Nothing
                 , lastActivity = Time.millisToPosix 0
                 , useScreenKeyboardOnMobile = True
@@ -324,8 +335,11 @@ update msg session =
         ( Ready model, OnResizeViewport width height ) ->
             let
                 device =
-                    if width < 1200 then
+                    if width < minDesktopViewportWidth then
                         Mobile
+
+                    else if width < maxSmallDesktopViewportWidth then
+                        DesktopSmall
 
                     else
                         Desktop
@@ -398,31 +412,29 @@ update msg session =
             ( Ready newModel, cmd )
 
         ( Ready model, ToNextWord ) ->
-            if List.length model.wordsFound == List.length allWords then
+            if List.length model.wordsFound == List.length (allWords model.dictsActive) then
                 ( GameFinished model, Cmd.none )
 
             else
                 let
                     dictionary =
-                        allWords
+                        allWords model.dictsActive
                             |> List.filter (\word -> not <| List.member word model.wordsFound)
-
-                    newGameStats =
-                        model.gameStats |> withAddAttempts 1
                 in
-                ( Ready { model | gameStats = newGameStats }
+                ( Ready model
                 , Cmd.batch
                     [ Random.generate NewWordChain (wordChainGenerator dictionary)
                     , Browser.Dom.focus idInput
                         |> Task.attempt (\_ -> NoOp)
-                    , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
                     ]
                 )
 
         ( Ready model, OnGiveUpClicked ) ->
             let
                 newGameStats =
-                    model.gameStats |> withAddRetries (List.length model.wordChain)
+                    model.gameStats
+                        |> withAddRetries (List.length model.wordChain)
+                        |> withAddAttempts (List.length model.wordChain)
             in
             ( Ready
                 { model
@@ -441,13 +453,43 @@ update msg session =
             restartGame model
 
         ( Ready model, OnToggleHelp ) ->
-            ( Ready { model | showHelp = not model.showHelp }, Cmd.none )
+            ( Ready
+                { model
+                    | showHelp = not model.showHelp
+                    , showDictionaryModal = False
+                }
+            , Cmd.none
+            )
 
         ( Ready model, OnToggleDictionaryModal ) ->
-            ( Ready { model | showDictionaryModal = not model.showDictionaryModal }, Cmd.none )
+            ( Ready
+                { model
+                    | showDictionaryModal = not model.showDictionaryModal
+                    , showHelp = False
+                }
+            , Cmd.none
+            )
 
         ( Ready model, OnToggleDictionaryShowAllWords ) ->
             ( Ready { model | unhideDictionary = not model.unhideDictionary }, Cmd.none )
+
+        ( Ready model, OnToggleDictionaryActive dictName ) ->
+            ( Ready
+                { model
+                    | dictsActive =
+                        Dict.update dictName
+                            (\v ->
+                                case v of
+                                    Nothing ->
+                                        Just True
+
+                                    Just active ->
+                                        Just <| not active
+                            )
+                            model.dictsActive
+                }
+            , Cmd.none
+            )
 
         --
         ( Ready model, OnMouseEnterCharacter id ) ->
@@ -513,7 +555,7 @@ liftModel fn ( model, cmd ) =
 restartGame model =
     let
         newGameStats =
-            { dictionarySize = List.length allWords
+            { correct = 0
             , attempts = 0
             , retries = 0
             }
@@ -525,7 +567,7 @@ restartGame model =
             , gameStats = newGameStats
         }
     , Cmd.batch
-        [ Random.generate NewWordChain (wordChainGenerator allWords)
+        [ Random.generate NewWordChain (wordChainGenerator <| allWords model.dictsActive)
         , Browser.Dom.focus idInput
             |> Task.attempt (\_ -> NoOp)
         , Storage.setStorage
@@ -572,7 +614,7 @@ view session =
                     Mobile ->
                         viewMobile model
 
-                    Desktop ->
+                    _ ->
                         viewDesktop model
 
             GameFinished model ->
@@ -585,24 +627,14 @@ view session =
 viewMobile model =
     let
         modals =
-            el
+            column
                 [ width fill
                 , height fill
-
-                --, inFront <|
-                --    if model.showDictionaryModal then
-                --        UI.modal OnToggleDictionaryModal
-                --            [ el [] <| UI.heading "Dictionary"
-                --            , model.dictionary
-                --                |> List.map (\word -> word.characters |> List.map .hanzi |> String.join "," |> text)
-                --                |> column [ scrollbarY ]
-                --            ]
-                --    else
-                --        none
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                 ]
-            <|
-                Help.viewMobile model.showHelp OnToggleHelp NoOpString
+                [ viewDictionaryModal model
+                , Help.viewMobile model.showHelp OnToggleHelp NoOpString
+                ]
     in
     column [ width fill, height fill ]
         [ mobileViewTopBar model
@@ -647,64 +679,7 @@ viewDesktop model =
     let
         modals =
             row [ width fill, height fill, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ]
-                [ if model.showDictionaryModal then
-                    UI.modal OnToggleDictionaryModal
-                        [ row [ width <| minimum 400 fill ]
-                            [ el [ alignLeft ] <| UI.heading "Dictionary"
-                            , el [ alignRight ] <|
-                                UI.niceButton
-                                    (if model.unhideDictionary then
-                                        "Hide all words"
-
-                                     else
-                                        "Show all words"
-                                    )
-                                    OnToggleDictionaryShowAllWords
-                                    (Just <|
-                                        if model.unhideDictionary then
-                                            Icons.eyeOff 20
-
-                                        else
-                                            Icons.eye 20
-                                    )
-                            ]
-                        , Words.allWords
-                            |> List.map
-                                (\word ->
-                                    Words.wordToStringParts word
-                                        |> (\( hanzi, pinyin, english ) ->
-                                                let
-                                                    wordAlreadyDone =
-                                                        List.member word model.wordsFound
-
-                                                    maybeHide str =
-                                                        if model.unhideDictionary || wordAlreadyDone then
-                                                            str
-
-                                                        else
-                                                            "."
-                                                in
-                                                row
-                                                    [ width fill
-                                                    , spacing 20
-                                                    , Font.color <|
-                                                        if wordAlreadyDone then
-                                                            UI.correctColor
-
-                                                        else
-                                                            UI.black
-                                                    ]
-                                                    [ paragraph [ width <| minimum 100 <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
-                                                    , paragraph [ width <| fillPortion 2, Font.size 16, Font.center ] [ text <| maybeHide pinyin ]
-                                                    , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text <| maybeHide english ]
-                                                    ]
-                                           )
-                                )
-                            |> column [ scrollbarY, height fill, width fill, padding 10, spacing 10 ]
-                        ]
-
-                  else
-                    none
+                [ viewDictionaryModal model
                 , Help.viewDesktop model.showHelp OnToggleHelp NoOpString
                 ]
     in
@@ -743,6 +718,70 @@ viewDesktop model =
         ]
 
 
+viewDictionaryModal model =
+    if model.showDictionaryModal then
+        MobileUI.modal OnToggleDictionaryModal
+            [ row [ width <| minimum 400 fill ]
+                [ el [ alignLeft ] <| UI.heading "Dictionary"
+                , el [ alignRight ] <|
+                    UI.niceButton
+                        (if model.unhideDictionary then
+                            "Hide all words"
+
+                         else
+                            "Show all words"
+                        )
+                        OnToggleDictionaryShowAllWords
+                        (Just <|
+                            if model.unhideDictionary then
+                                Icons.eyeOff 20
+
+                            else
+                                Icons.eye 20
+                        )
+                ]
+            , Words.allDicts
+                |> List.map (\( dictName, _ ) -> UI.niceToggleButton dictName (OnToggleDictionaryActive dictName) Nothing <| dictActive model dictName)
+                |> row [ centerX, height shrink, paddingXY 10 0, spacing 20 ]
+            , Words.allWords model.dictsActive
+                |> List.map
+                    (\word ->
+                        Words.wordToStringParts word
+                            |> (\( hanzi, pinyin, english ) ->
+                                    let
+                                        wordAlreadyDone =
+                                            List.member word model.wordsFound
+
+                                        maybeHide str =
+                                            if model.unhideDictionary || wordAlreadyDone then
+                                                str
+
+                                            else
+                                                "."
+                                    in
+                                    row
+                                        [ width fill
+                                        , spacing 20
+                                        , Font.color <|
+                                            if wordAlreadyDone then
+                                                UI.correctColor
+
+                                            else
+                                                UI.black
+                                        ]
+                                        [ paragraph [ width <| minimum 100 <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
+                                        , paragraph [ width <| fillPortion 2, Font.size 16, Font.center ] [ text <| maybeHide pinyin ]
+                                        , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text <| maybeHide english ]
+                                        ]
+                               )
+                    )
+                |> column [ scrollbarY, height fill, width fill, padding 10, spacing 10 ]
+            ]
+
+    else
+        none
+
+
 viewLogo =
     el [ width fill, height fill ] <|
         el [ centerX, centerY, Font.color UI.white, Font.bold ] <|
@@ -756,6 +795,15 @@ viewFooter =
 
 viewTopBar : Model -> Element Msg
 viewTopBar model =
+    let
+        buttonFn =
+            case model.device of
+                Desktop ->
+                    \str onClick icon -> UI.niceButton str onClick (Just icon)
+
+                _ ->
+                    \str onClick icon -> UI.niceIconButton icon onClick
+    in
     row [ height <| px 50, width fill, Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent viewLogo ]
         [ el
             [ alignLeft
@@ -789,24 +837,23 @@ viewTopBar model =
           <|
             UI.niceTextWith [ Font.color UI.white ] <|
                 "Words to go: "
-                    ++ (String.fromInt <| (List.length allWords - List.length model.wordsFound))
-        , el [ alignLeft ] <| UI.niceButton "Restart Game" OnRestartClick (Just <| Icons.refresh 20)
-        , el [ alignRight ] <|
-            UI.niceButton
-                (case model.notificationsEnabled of
-                    Nothing ->
-                        "Notifications"
+                    ++ (String.fromInt <| wordsToGo model.dictsActive model.wordsFound)
+        , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh 20)
 
-                    Just True ->
-                        "Disable Notifications"
-
-                    Just False ->
-                        "Enable Notifications"
-                )
-                OnToggleNotifications
-                (Just <| Icons.bell 20)
-        , UI.niceButton "Dictionaries" OnToggleDictionaryModal (Just <| Icons.translate 20)
-        , UI.niceButton "Help" OnToggleHelp (Just <| Icons.questionmark 20)
+        --, el [ alignRight ] <|
+        --    buttonFn
+        --        (case model.notificationsEnabled of
+        --            Nothing ->
+        --                "Notifications"
+        --            Just True ->
+        --                "Disable Notifications"
+        --            Just False ->
+        --                "Enable Notifications"
+        --        )
+        --        OnToggleNotifications
+        --        (Icons.bell 20)
+        , el [ alignRight ] <| buttonFn "Dictionaries" OnToggleDictionaryModal (Icons.translate 20)
+        , buttonFn "Help" OnToggleHelp (Icons.questionmark 20)
         ]
 
 
@@ -846,8 +893,10 @@ mobileViewTopBar model =
             <|
                 MobileUI.niceTextWith [ Font.color UI.white ] <|
                     "Words to go: "
-                        ++ (String.fromInt <| (List.length allWords - List.length model.wordsFound))
+                        ++ (String.fromInt <| (List.length (allWords model.dictsActive) - List.length model.wordsFound))
         , MobileUI.simpleIconButtonInverted (Icons.refresh 20) OnRestartClick
+            |> el [ alignRight ]
+        , MobileUI.simpleIconButtonInverted (Icons.translate 20) OnToggleDictionaryModal
             |> el [ alignRight ]
         , MobileUI.simpleIconButtonInverted (Icons.questionmark 20) OnToggleHelp
             |> el [ alignRight ]
@@ -858,9 +907,9 @@ viewGameFinished model =
     el [ width fill, height fill ] <|
         column [ centerX, centerY, spacing 40 ]
             [ UI.heading "Game Finished!"
-            , text <| "Nr of words: " ++ String.fromInt model.dictionarySize
             , text <| "Nr of attempts: " ++ String.fromInt model.attempts
-            , text <| "Nr of retries: " ++ String.fromInt model.retries
+            , text <| "Of which nr of successes: " ++ String.fromInt model.correct
+            , text <| "Of which nr of retries: " ++ String.fromInt model.retries
             , el [ centerX ] <| UI.niceButton "Restart" OnRestartClick (Just <| Icons.refresh 20)
             ]
 
@@ -1016,30 +1065,31 @@ viewInput model =
                 }
             , spacing 20
             ]
-            [ if model.device == Desktop then
-                Input.text
-                    [ onEnter UserPressedEnter
-                    , htmlAttribute <| Html.Attributes.id idInput
-                    , Border.width 0
-                    ]
-                    { onChange = InputHanzi
-                    , text = model.currentInput
-                    , placeholder =
-                        Just <|
-                            Input.placeholder [ Font.size 14 ] <|
-                                text <|
-                                    "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
-                                        ++ (if isOnDesktop model then
-                                                " or the Enter key"
+            [ case model.device of
+                Mobile ->
+                    text model.currentInput
 
-                                            else
-                                                ""
-                                           )
-                    , label = Input.labelHidden ""
-                    }
+                _ ->
+                    Input.text
+                        [ onEnter UserPressedEnter
+                        , htmlAttribute <| Html.Attributes.id idInput
+                        , Border.width 0
+                        ]
+                        { onChange = InputHanzi
+                        , text = model.currentInput
+                        , placeholder =
+                            Just <|
+                                Input.placeholder [ Font.size 14 ] <|
+                                    text <|
+                                        "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
+                                            ++ (if isOnDesktop model then
+                                                    " or the Enter key"
 
-              else
-                text model.currentInput
+                                                else
+                                                    ""
+                                               )
+                        , label = Input.labelHidden ""
+                        }
             , Input.button
                 [ mouseOver [ Font.color UI.accentColorHighlight ]
                 , Font.color UI.accentColor
@@ -1087,12 +1137,23 @@ isOnDesktop model =
         Mobile ->
             False
 
-        Desktop ->
+        _ ->
             True
 
 
 isOnMobile model =
     not <| isOnDesktop model
+
+
+dictActive model dictName =
+    Dict.get dictName model.dictsActive
+        |> Maybe.withDefault True
+
+
+wordsToGo dictsActive wordsFound =
+    Words.allWords dictsActive
+        |> List.filter (\w -> not <| List.member w wordsFound)
+        |> List.length
 
 
 wordChainGenerator : List Word -> Random.Generator WordChain
@@ -1193,9 +1254,12 @@ processRoundFinished model =
                 |> Task.attempt (\_ -> NoOp)
     in
     if List.length (allWrongAnswers model) > 5 then
+        -- Too many wrong answers
         let
             newGameStats =
-                model.gameStats |> withAddRetries (List.length model.wordChain)
+                model.gameStats
+                    |> withAddRetries (List.length model.wordChain)
+                    |> withAddAttempts (List.length model.wordChain)
         in
         ( { model
             | gameState = TooManyWrongAnswers
@@ -1220,11 +1284,19 @@ processRoundFinished model =
                     |> List.unique
         in
         if finished then
+            -- word round finished, we found all correctly
+            let
+                newGameStats =
+                    model.gameStats
+                        |> withAddAttempts 1
+                        |> withAddOneCorrect
+            in
             ( { model
                 | gameState = FilledInCorrectly
                 , showTodoUpdate = Just -(List.length model.wordChain)
                 , showTodoUpdateTimer = 2
                 , wordsFound = wordsFound
+                , gameStats = newGameStats
               }
             , Cmd.batch
                 [ case ( model.device, model.useScreenKeyboardOnMobile ) of
@@ -1245,6 +1317,7 @@ processRoundFinished model =
                             )
                             wordsFound
                     }
+                , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
                 ]
             )
 

@@ -81,6 +81,21 @@ niceButton text onClick mIcon =
     niceButtonWith [] text onClick mIcon
 
 
+niceToggleButton text onClick mIcon state =
+    niceButtonWith
+        (if state == True then
+            [ floating, mouseOver [ Element.Background.color accentColorHighlight ] ]
+
+         else
+            [ Element.Background.color accentColorHighlight
+            , mouseOver [ Element.Background.color accentColor ]
+            ]
+        )
+        text
+        onClick
+        mIcon
+
+
 niceButtonWith attr text onClick mIcon =
     Element.Input.button
         ([ mouseOver [ Element.Background.color accentColorHighlight ]

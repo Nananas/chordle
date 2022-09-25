@@ -3,6 +3,7 @@ module Words exposing (..)
 -- ^(\S*)\s*(\S*)\s*(.*)
 -- ,Word "$1" "$2" "$3"
 
+import Dict exposing (Dict)
 import Json.Encode
 import List.Extra as List
 import Set exposing (Set)
@@ -147,11 +148,14 @@ splitStringIntoPinyin str =
     let
         fn : Char -> ( List Char, List PinyinPart ) -> ( List Char, List PinyinPart )
         fn char ( acc, parts ) =
-            case charToTone char of
-                Nothing ->
+            case ( charToTone char, acc ) of
+                ( Nothing, _ ) ->
                     ( char :: acc, parts )
 
-                Just tone ->
+                ( Just tone, [] ) ->
+                    ( [], parts )
+
+                ( Just tone, _ ) ->
                     ( [], { pinyin = String.fromList <| List.reverse <| acc, tone = tone } :: parts )
 
         result =
@@ -160,6 +164,7 @@ splitStringIntoPinyin str =
                 |> String.replace "//" ""
                 |> String.toLower
                 |> String.toList
+                |> List.filter Char.isAlphaNum
                 |> List.foldl fn ( [], [] )
     in
     case result of
@@ -209,8 +214,22 @@ newWord hanzi pinyin english =
     }
 
 
-allWords : List Word
-allWords =
+allWords : Dict String Bool -> List Word
+allWords dictsActive =
+    allDicts
+        |> List.filter (\( name, _ ) -> Dict.get name dictsActive |> Maybe.withDefault True)
+        |> List.map Tuple.second
+        |> List.concat
+
+
+allDicts =
+    [ ( "CLT 1-2-3", clt123 )
+    , ( "CLT 4", clt4 )
+    ]
+
+
+clt123 : List Word
+clt123 =
     [ newWord "啊" "a5" "INTERJECTION: Ah, oh"
     , newWord "爱" "ai4" "VERB: to love"
     , newWord "安全" "an1quan2" "NOUN: safety, security"
@@ -508,7 +527,7 @@ allWords =
     , newWord "练习" "lian4xi2" "VERB: to practice|NOUN: exercise"
     , newWord "两" "liang3" "NUMERAL: two"
     , newWord "了不起" "liao3bu5qi3" "IDIOM EXPRESSION: amazing, terrific, extraordinary"
-    , newWord "料子" "liao4zi5" "NOUN: material for making clothes"
+    , newWord "料子" "liao4zi5" "NOUN: material for making clothes, woolen fabric"
     , newWord "零" "ling2" "NUMERAL: zero"
     , newWord "流利" "liu2li4" "ADJECTIVE: fluent"
     , newWord "留学生" "liu2xue2sheng1" "NOUN: student studying abroad"
@@ -881,3 +900,7 @@ allWords =
     , newWord "周末" "zhou1mo4" "NOUN: the weekend"
     , newWord "玩" "wan2" "VERB: play, have fun"
     ]
+
+
+clt4 =
+    [ newWord "父母" "fu4mu3" "NOUN: father and mother, parents" ]

@@ -16,3 +16,10 @@ archive:
 	tar -czf chordle.tar.gz main.js \
 	index.html \
 	favicon.ico
+
+test:
+	elm-test
+
+watch:
+	x-terminal-emulator -e python3 -m http.server &
+	npx elm-watch hot
