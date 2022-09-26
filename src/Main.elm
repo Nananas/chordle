@@ -265,6 +265,10 @@ update msg session =
                                 words
                         )
                         (allWords Dict.empty)
+
+                --wordsFoundDebug =
+                --allWords Dict.empty |> List.drop 1
+                --|> Debug.log "Debug stuff"
             in
             if List.length wordsFound == List.length (allWords Dict.empty) then
                 ( GameFinished
@@ -1262,80 +1266,87 @@ allWrongAnswers model =
 processRoundFinished : Model -> ( Model, Cmd Msg )
 processRoundFinished model =
     let
-        focusNextBtn =
-            Browser.Dom.focus idNextButton
-                |> Task.attempt (\_ -> NoOp)
+        withFocusNextBtn ( m, cmd1 ) =
+            ( m
+            , Cmd.batch
+                [ cmd1
+                , Browser.Dom.focus idNextButton
+                    |> Task.attempt (\_ -> NoOp)
+                ]
+            )
     in
-    if List.length (allWrongAnswers model) > 5 then
-        -- Too many wrong answers
-        let
-            newGameStats =
-                model.gameStats
-                    |> withAddRetries (List.length model.wordChain)
-                    |> withAddAttempts (List.length model.wordChain)
-        in
-        ( { model
-            | gameState = TooManyWrongAnswers
-            , showTodoUpdate = Just (List.length model.wordChain)
-            , showTodoUpdateTimer = 2
-            , gameStats = newGameStats
-          }
-        , Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
-        )
-
-    else
-        let
-            finished =
-                model.wordChain
-                    |> List.foldl
-                        (\word acc -> isWordFullyKnown model word && acc)
-                        True
-
-            wordsFound =
-                model.wordsFound
-                    ++ model.wordChain
-                    |> List.unique
-        in
-        if finished then
-            -- word round finished, we found all correctly
+    withFocusNextBtn <|
+        if List.length (allWrongAnswers model) > 5 then
+            -- Too many wrong answers
             let
                 newGameStats =
                     model.gameStats
-                        |> withAddAttempts 1
-                        |> withAddOneCorrect
+                        |> withAddRetries (List.length model.wordChain)
+                        |> withAddAttempts (List.length model.wordChain)
             in
             ( { model
-                | gameState = FilledInCorrectly
-                , showTodoUpdate = Just -(List.length model.wordChain)
+                | gameState = TooManyWrongAnswers
+                , showTodoUpdate = Just (List.length model.wordChain)
                 , showTodoUpdateTimer = 2
-                , wordsFound = wordsFound
                 , gameStats = newGameStats
               }
-            , Cmd.batch
-                [ case ( model.device, model.useScreenKeyboardOnMobile ) of
-                    ( Mobile, True ) ->
-                        Cmd.none
-
-                    _ ->
-                        focusNextBtn
-                , Storage.setStorage
-                    { name = "words-found"
-                    , json =
-                        Json.Encode.list
-                            (\word ->
-                                word.characters
-                                    |> List.map .hanzi
-                                    |> String.join ""
-                                    |> Json.Encode.string
-                            )
-                            wordsFound
-                    }
-                , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
-                ]
+            , Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
             )
 
         else
-            ( { model | gameState = NotDone }, focusNextBtn )
+            let
+                finished =
+                    model.wordChain
+                        |> List.foldl
+                            (\word acc -> isWordFullyKnown model word && acc)
+                            True
+
+                wordsFound =
+                    List.foldl
+                        (\w acc ->
+                            if List.member w acc then
+                                acc
+
+                            else
+                                w :: acc
+                        )
+                        model.wordsFound
+                        model.wordChain
+            in
+            if finished then
+                -- word round finished, we found all correctly
+                let
+                    newGameStats =
+                        model.gameStats
+                            |> withAddAttempts 1
+                            |> withAddOneCorrect
+                in
+                ( { model
+                    | gameState = FilledInCorrectly
+                    , showTodoUpdate = Just -(List.length model.wordChain)
+                    , showTodoUpdateTimer = 2
+                    , wordsFound = wordsFound
+                    , gameStats = newGameStats
+                  }
+                , Cmd.batch
+                    [ Storage.setStorage
+                        { name = "words-found"
+                        , json =
+                            Json.Encode.list
+                                (\word ->
+                                    word.characters
+                                        |> List.map .hanzi
+                                        |> String.join ""
+                                        |> Json.Encode.string
+                                )
+                                wordsFound
+                        }
+                    , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
+                    ]
+                )
+
+            else
+                ( { model | gameState = NotDone }, Cmd.none )
 
 
 
