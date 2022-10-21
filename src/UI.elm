@@ -9,6 +9,8 @@ import Element.Input
 import Html
 import Html.Attributes
 import Html.Events
+import Icons
+import Json.Decode
 import Svg
 import Svg.Attributes
 
@@ -237,24 +239,6 @@ arrowRight size =
                 ]
 
 
-arrowLeft size =
-    el [ width <| px size, height <| px size ] <|
-        Element.html <|
-            Svg.svg
-                [ Svg.Attributes.fill "none"
-                , Svg.Attributes.viewBox "0 0 24 24"
-                , Svg.Attributes.strokeWidth "2"
-                , Svg.Attributes.stroke "currentColor"
-                ]
-                [ Svg.path
-                    [ Svg.Attributes.strokeLinecap "round"
-                    , Svg.Attributes.strokeLinejoin "round"
-                    , Svg.Attributes.d "M10 19l-7-7m0 0l7-7m-7 7h18"
-                    ]
-                    []
-                ]
-
-
 arrowDown size =
     el [ width <| px size, height <| px size ] <|
         Element.html <|
@@ -318,3 +302,45 @@ modal toggleMsg content =
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "auto"
                 ]
                 content
+
+
+viewFooter =
+    el [ alignRight, alignBottom, padding 10 ] <|
+        newTabLink []
+            { url = "https://github.com/Nananas/chordle"
+            , label =
+                Element.Input.button
+                    [ mouseOver [ Element.Font.color accentColorHighlight ]
+                    , Element.Font.color accentColor
+                    , width shrink
+                    , height <| px 40
+                    ]
+                    { onPress = Nothing
+                    , label =
+                        el [ centerY, centerX, paddingXY 20 0, spacing 20 ]
+                            (Icons.github 32)
+                    }
+            }
+
+
+viewLogo =
+    el [ width fill, height fill ] <|
+        el [ centerX, centerY, Element.Font.color white, Element.Font.bold ] <|
+            text "Chordle"
+
+
+onEnter : msg -> Element.Attribute msg
+onEnter msg =
+    htmlAttribute
+        (Html.Events.on "keyup"
+            (Json.Decode.field "key" Json.Decode.string
+                |> Json.Decode.andThen
+                    (\key ->
+                        if key == "Enter" then
+                            Json.Decode.succeed msg
+
+                        else
+                            Json.Decode.fail "Not the enter key"
+                    )
+            )
+        )

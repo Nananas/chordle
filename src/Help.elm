@@ -7,6 +7,7 @@ import Element.Border as Border
 import Element.Events
 import Element.Font as Font
 import Element.Input as Input
+import Icons
 import MobileUI
 import Tones exposing (..)
 import UI
@@ -38,7 +39,7 @@ viewDesktop showHelp toggleMsg noOpMsg =
                             ]
                             [ Input.text
                                 [ Border.width 0
-                                , inFront <| row [ centerY, padding 10, Font.color UI.accentColor ] [ el [ width <| px 50 ] none, UI.arrowLeft 24 ]
+                                , inFront <| row [ centerY, padding 10, Font.color UI.accentColor ] [ el [ width <| px 50 ] none, Icons.arrowBack 24 ]
                                 ]
                                 { onChange = noOpMsg
                                 , text = "xie3"
@@ -165,7 +166,7 @@ viewMobile showHelp toggleMsg noOpMsg =
                         ]
                         [ Input.text
                             [ Border.width 0
-                            , inFront <| row [ centerY, padding 10, Font.color UI.accentColor ] [ el [ width <| px 50 ] none, UI.arrowLeft 24 ]
+                            , inFront <| row [ centerY, padding 10, Font.color UI.accentColor ] [ el [ width <| px 50 ] none, Icons.arrowBack 24 ]
                             ]
                             { onChange = noOpMsg
                             , text = "xie3"

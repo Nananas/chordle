@@ -125,6 +125,28 @@ similarWords word wordList =
             )
 
 
+similarWordsList : List Word -> List Word -> List Word
+similarWordsList words wordList =
+    let
+        hanziPartsSet =
+            words
+                |> List.map .characters
+                |> List.concat
+                |> List.map .hanzi
+                |> Set.fromList
+    in
+    wordList
+        |> List.filter
+            (\{ characters } ->
+                characters
+                    |> List.map .hanzi
+                    |> Set.fromList
+                    |> Set.intersect hanziPartsSet
+                    |> Set.isEmpty
+                    |> not
+            )
+
+
 
 --isWordFullyShown : Word -> Bool
 --isWordFullyShown word =
@@ -477,7 +499,7 @@ clt123 =
     , newWord "经理" "jing1li3" "NOUN: manager"
     , newWord "惊喜" "jing1xi3" "NOUN: pleasant surprise"
     , newWord "酒" "jiu3" "NOUN: wine or liquor"
-    , newWord "酒店" "jiu3dian4" "NOUN: hotel (often used in the name|NOUN: wineshop; public house 2 hotel [in names of hotels]"
+    , newWord "酒店" "jiu3dian4" "NOUN: hotel (often used in the name)|NOUN: wineshop; public house"
     , newWord "就" "jiu4" "ADVERB: exactly, precisely"
     , newWord "局" "ju2" "NOUN: office, bureau"
     , newWord "橘黄" "ju2huang2" "ADJECTIVE: orange (color)"
@@ -814,7 +836,7 @@ clt123 =
     , newWord "英国" "Ying1guo2" "PROPER NOUN: Great Britain"
     , newWord "英语" "Ying1yu3" "NOUN: English"
     , newWord "影" "ying3" "NOUN: shadow"
-    , newWord "邮" "you2" "VERB: to post, to mail"
+    , newWord "邮" "you2" "VERB: to post, to mail|NOUN: postal, mail"
     , newWord "邮局" "you2ju2" "NOUN: post office"
     , newWord "游泳" "you2yong3" "VERB PLUS OBJECT: to swim"
     , newWord "有" "you3" "VERB: to have"
@@ -903,4 +925,53 @@ clt123 =
 
 
 clt4 =
-    [ newWord "父母" "fu4mu3" "NOUN: father and mother, parents" ]
+    [ newWord "父母" "fu4mu3" "NOUN: father and mother, parents"
+    , newWord "假期" "jia4qi1" "NOUN: vacation, holiday"
+    , newWord "做梦" "zuo4meng4" "VERB: to dream"
+    , newWord "梦想" "meng4xiang3" "NOUN: wish, dream"
+    , newWord "恶梦" "e4meng4" "NOUN: nightmare"
+    , newWord "放假" "fang4jia4" "VERB: to have a holiday"
+    , newWord "停" "ting2" "VERB: to stop"
+    , newWord "停车" "ting2che1" "VERB: to park (a car)"
+    , newWord "火车" "huo3che1" "NOUN: a train"
+    , newWord "买票" "mai3piao4" "VERB: buy a ticket"
+    , newWord "开会" "kai1hui4" "VERB: to hold or attend a meeting"
+    , newWord "全球" "quan2qiu2" "NOUN: the whole world"
+    , newWord "见面" "jian4mian4" "VERB: to meet, to see each other"
+    , newWord "打算" "da3suan5" "VERB: to plan, to intend|NOUN: consideration, calculation"
+    , newWord "第三者" "di4san1zhe3" "NOUN: third party|NOUN: the third (wo)man involved in a relationship"
+    , newWord "软件" "ruan3jian4" "NOUN: software"
+    , newWord "重要" "zhong4yao4" "ADJECTIVE: important, significant, major"
+    , newWord "火鸡" "huo3ji1" "NOUN: a turkey"
+    , newWord "下蛋" "xia4dan4" "VERB: to lay eggs"
+    , newWord "桥" "qiao2" "NOUN: bridge"
+    , newWord "客车" "ke4che1" "NOUN: passenger train, coach, bus"
+    , newWord "货车" "huo4che1" "NOUN: freight train, goods train"
+    , newWord "竹子" "zhu2zi5" "NOUN: bamboo"
+    , newWord "修车" "xiu1che1" "VERB: to repair a bike, car"
+    , newWord "心理" "xin1li3" "NOUN: mentality, psychology"
+    , newWord "紧张" "jin3zhang1" "ADJECTIVE: nervous, stressed, tense"
+    , newWord "出路" "chu1lu4" "NOUN: way out"
+    , newWord "位子" "wei4zi5" "NOUN: seat, place"
+    , newWord "骂" "ma4" "VERB: to curse, to swear"
+    , newWord "希望" "xi1wang4" "NOUN: hope, wish|VERB: to hope, to wish"
+    , newWord "看法" "kan4fa5" "NOUN: point of view, opinion"
+    , newWord "只" "zhi3" "ADVERB: only, just"
+    , newWord "秋天" "qiu1tian1" "NOUN: autumn"
+    , newWord "冬天" "dong1tian1" "NOUN: winter"
+    , newWord "春天" "chun1tian1" "NOUN: spring"
+    , newWord "夏天" "xia4tian1" "NOUN: summer"
+    , newWord "红叶" "hong2ye4" "NOUN: red autumnal leaves"
+    , newWord "视频" "shi4pin2" "NOUN: video"
+    , newWord "食品" "shi2pin3" "NOUN: food, foodstuff, provisions"
+    , newWord "照相" "zhao4xiang4" "VERB: to take a photograph"
+    , newWord "象" "xiang4" "NOUN: elephant"
+    , newWord "像" "xiang4" "NOUN: likeness|VERB: to resemble|ADVERB: look like"
+    , newWord "步行街" "bu4xing2jie1" "NOUN: pedestrian street"
+    , newWord "超市" "chao1shi4" "NOUN: supermarket"
+    , newWord "百货大楼" "bai3huo4da4lou2" "NOUN: department store"
+    , newWord "市场" "shi4chang3" "NOUN: marketplace, market"
+    , newWord "水平" "shui3ping2" "NOUN: standard, level"
+    , newWord "成功" "cheng2gong1" "VERB: to succeed|ADJECTIVE: successful"
+    , newWord "研究" "yan2jiu1" "VERB: to study, to research"
+    ]
