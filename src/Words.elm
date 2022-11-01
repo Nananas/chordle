@@ -974,4 +974,15 @@ clt4 =
     , newWord "水平" "shui3ping2" "NOUN: standard, level"
     , newWord "成功" "cheng2gong1" "VERB: to succeed|ADJECTIVE: successful"
     , newWord "研究" "yan2jiu1" "VERB: to study, to research"
+
+    -- 10月27号
+    , newWord "正常" "zheng4chang2" "ADJECTIVE: normal, regular"
+    , newWord "心理学" "xin1li3xue2" "NOUN: psychology"
+    , newWord "看法" "kan4fa5" "NOUN: (point of) view, opinion"
+    , newWord "想法" "xiang3fa5" "NOUN: idea, opinion, what one has in mind"
+    , newWord "小心" "xiao3xin5" "ADJECTIVE: careful, mindful|VERB: be careful"
+    , newWord "邻居" "lin2ju1" "NOUN: neighbour"
+    , newWord "市长" "shi4zhang3" "NOUN: mayor"
+    , newWord "院长" "yuan4zhang3" "NOUN: dean"
+    , newWord "校长" "xiao4zhang3" "NOUN: headmaster (of a school), principal"
     ]
