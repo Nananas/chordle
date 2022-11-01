@@ -156,6 +156,10 @@ subscriptions model =
                 Training.subscriptions trainingModel
                     |> Sub.map TrainingMsg
 
+            Daily _ ->
+                Daily.subscriptions
+                    |> Sub.map DailyMsg
+
             _ ->
                 Sub.none
         ]

@@ -68,8 +68,14 @@
 					app.ports.loadStorage.subscribe(function(name) {
 						storedData = localStorage.getItem(name);
 						if (storedData) {
-							j = JSON.parse(storedData);
-							app.ports.storageLoaded.send({name:name, json:j});
+							try {
+								console.log(storedData);
+								j = JSON.parse(storedData);
+								app.ports.storageLoaded.send({name:name, json:j});
+							} catch (err){
+								console.log(err);
+								localStorage.setItem(name, JSON.stringify({}));
+							}
 						} else {
 							app.ports.storageLoaded.send({name:name, json: {}});
 						}
@@ -100,6 +106,18 @@
 					});
 				}
 			}
+
+			clipboard = {
+				initPorts: function(app) {
+					app.ports.writeToClipboard.subscribe(function(towrite) {
+						navigator.clipboard.writeText(towrite).then(function(){
+							console.log("Written to clipboard: " + towrite);
+						}, function(err) {
+							console.log("error writing to clipboard: " + err);
+						})
+					});
+				}
+			}
 		</script>
 
 		<script src="main.js"></script>
@@ -111,6 +129,7 @@
 
 	  		storage.initPorts(app);
 	  		notifications.initPorts(app);
+	  		clipboard.initPorts(app);
 		</script>
 	</body>
 </html>

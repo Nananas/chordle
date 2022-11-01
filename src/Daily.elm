@@ -1,17 +1,24 @@
 module Daily exposing (..)
 
 import Browser.Dom
-import Dict
+import Clipboard
+import Date
+import Dict exposing (Dict)
+import Dict.Extra as Dict
 import Element exposing (..)
 import Element.Background
 import Element.Border
+import Element.Events
 import Element.Font
 import Element.Input
 import Html.Attributes
 import Icons
+import Json.Decode
+import Json.Encode
 import List.Extra as List
 import Process
 import Random
+import Storage exposing (Storage)
 import String.Extra as String
 import Task
 import Time
@@ -35,8 +42,8 @@ idInput =
 
 
 type Msg
-    = LoadedDate Int
-    | NewWordChain WordChain
+    = OnSeedDateLoaded ( Int, Date.Date )
+    | OnStorageLoaded Storage
     | NoOp
     | NoOpIntInt ( Int, Int )
     | UserPressedEnter
@@ -45,12 +52,16 @@ type Msg
     | OnMouseLeaveCharacter
     | OnGiveUpClicked
     | OnClickedHome
+    | OnShareClicked String
+    | OnClickedToggleShowHistory
+    | OnClickedHideHistory
 
 
 type Model
-    = Loading
+    = LoadingSeed
+    | LoadingStorage Random.Seed Date.Date
     | Playing GameModel
-    | GameOver Bool EndScore GameModel
+    | GameOver GameOverState EndScore GameModel
 
 
 type alias GameModel =
@@ -59,7 +70,15 @@ type alias GameModel =
     , answers : List PinyinPart
     , showPopupForCharacter : Maybe ( Int, Int )
     , attempts : List Attempt
+    , today : Date.Date
+    , progress : Progress
+    , showProgressPopup : Bool
     }
+
+
+type GameOverState
+    = First DayProgress
+    | Other DayProgress
 
 
 type Attempt
@@ -74,24 +93,40 @@ type alias EndScore =
     }
 
 
+type DayProgress
+    = Succeeded
+    | Failed
+    | GiveUp
+
+
+type alias Progress =
+    -- Key is Rata Die format
+    Dict Int DayProgress
+
+
 
 -- INIT
 
 
 init =
-    ( Loading
-    , Task.map2 dateTimeToUniqueSeed Time.here Time.now
-        |> Task.perform LoadedDate
+    ( LoadingSeed
+    , Cmd.batch
+        [ Task.map dateTimeToUniqueSeed Date.today
+            |> Task.perform OnSeedDateLoaded
+        ]
     )
 
 
-initGame wordChain =
+initGame wordChain today progress =
     ( Playing
         { wordChain = wordChain
         , currentInput = ""
         , answers = []
         , showPopupForCharacter = Nothing
         , attempts = []
+        , today = today
+        , progress = progress
+        , showProgressPopup = False
         }
     , Process.sleep 100
         |> Task.andThen (\_ -> Browser.Dom.focus idInput)
@@ -99,49 +134,114 @@ initGame wordChain =
     )
 
 
-monthToInt month =
-    case month of
-        Time.Jan ->
-            0
+gameOver : DayProgress -> GameModel -> ( Model, Cmd Msg )
+gameOver dayProgress game =
+    let
+        state =
+            if Dict.member (Date.toRataDie game.today) game.progress then
+                Other dayProgress
 
-        Time.Feb ->
-            1
+            else
+                First dayProgress
 
-        Time.Mar ->
-            2
+        newProgress =
+            Dict.update (Date.toRataDie game.today)
+                (\mDP ->
+                    case mDP of
+                        Nothing ->
+                            Just dayProgress
 
-        Time.Apr ->
-            3
-
-        Time.May ->
-            4
-
-        Time.Jun ->
-            5
-
-        Time.Jul ->
-            6
-
-        Time.Aug ->
-            7
-
-        Time.Sep ->
-            8
-
-        Time.Oct ->
-            9
-
-        Time.Nov ->
-            10
-
-        Time.Dec ->
-            11
+                        _ ->
+                            mDP
+                )
+                game.progress
+    in
+    ( GameOver state (gameToEndScore game) { game | progress = newProgress }
+    , updateProgressInStorage game.today dayProgress game.progress
+    )
 
 
-dateTimeToUniqueSeed zone time =
+dateTimeToUniqueSeed : Date.Date -> ( Int, Date.Date )
+dateTimeToUniqueSeed today =
     --Debug.log "DEV SEED" 2
-    Time.posixToParts zone time
-        |> (\parts -> parts.year * 10000 + monthToInt parts.month * 100 + parts.day)
+    ( Date.toRataDie today
+    , today
+    )
+
+
+dayProgressToString p =
+    case p of
+        Succeeded ->
+            "v"
+
+        Failed ->
+            "x"
+
+        _ ->
+            "?"
+
+
+stringToDayProgress str =
+    case str of
+        "x" ->
+            Just Failed
+
+        "v" ->
+            Just Succeeded
+
+        "?" ->
+            Just GiveUp
+
+        _ ->
+            Nothing
+
+
+dayProgressDecoder =
+    Json.Decode.map stringToDayProgress Json.Decode.string
+
+
+parseProgress : Json.Decode.Value -> Progress
+parseProgress storage =
+    let
+        decoder =
+            Json.Decode.field "progress" (Json.Decode.dict dayProgressDecoder)
+    in
+    case Json.Decode.decodeValue decoder storage of
+        Err err ->
+            Dict.empty
+
+        Ok progress ->
+            progress
+                |> Dict.filterMap (\_ v -> identity v)
+                |> Dict.mapKeys (String.toInt >> Maybe.withDefault 0)
+
+
+encodeProgress : Progress -> Json.Encode.Value
+encodeProgress progress =
+    Json.Encode.object
+        [ ( "progress"
+          , progress |> Json.Encode.dict String.fromInt (dayProgressToString >> Json.Encode.string)
+          )
+        ]
+
+
+updateProgressInStorage : Date.Date -> DayProgress -> Progress -> Cmd Msg
+updateProgressInStorage today dayProgress progress =
+    Storage.setStorage
+        { name = "progress"
+        , json =
+            progress
+                |> Dict.update (Date.toRataDie today)
+                    (\mP ->
+                        case mP of
+                            Nothing ->
+                                Just dayProgress
+
+                            _ ->
+                                mP
+                    )
+                |> encodeProgress
+        }
 
 
 offsetWords : List Word -> List ( Word, Int, Hanzi )
@@ -202,11 +302,15 @@ sortWords words =
 
 update msg model =
     case ( model, msg ) of
-        ( Loading, LoadedDate uniqueInt ) ->
+        ( LoadingSeed, OnSeedDateLoaded ( seedInt, today ) ) ->
             let
                 seed =
-                    Random.initialSeed uniqueInt
+                    Random.initialSeed seedInt
+            in
+            ( LoadingStorage seed today, Storage.loadStorage "progress" )
 
+        ( LoadingStorage seed today, OnStorageLoaded storage ) ->
+            let
                 dictionary =
                     allWords Dict.empty
 
@@ -214,15 +318,17 @@ update msg model =
                     Random.step
                         (WordChain.multiChainGenerator 10 dictionary)
                         seed
+
+                progress =
+                    parseProgress storage.json
             in
             initGame
                 (wordChain
                     |> offsetWords
                     |> sortWords
                 )
-
-        ( Loading, NewWordChain wordChain ) ->
-            ( model, Cmd.none )
+                today
+                progress
 
         ( Playing game, InputHanzi txt ) ->
             ( Playing
@@ -241,7 +347,7 @@ update msg model =
                 |> processRoundFinished
 
         ( Playing game, OnGiveUpClicked ) ->
-            ( GameOver False (gameToEndScore game) game, Cmd.none )
+            gameOver GiveUp game
 
         ( Playing game, OnMouseEnterCharacter id ) ->
             ( Playing { game | showPopupForCharacter = Just id }, Cmd.none )
@@ -254,6 +360,21 @@ update msg model =
 
         ( GameOver success endScore game, OnMouseLeaveCharacter ) ->
             ( GameOver success endScore { game | showPopupForCharacter = Nothing }, Cmd.none )
+
+        ( GameOver (First _) _ _, OnShareClicked shareText ) ->
+            ( model, Clipboard.writeToClipboard shareText )
+
+        ( Playing game, OnClickedToggleShowHistory ) ->
+            ( Playing { game | showProgressPopup = not game.showProgressPopup }, Cmd.none )
+
+        ( GameOver success endScore game, OnClickedToggleShowHistory ) ->
+            ( GameOver success endScore { game | showProgressPopup = not game.showProgressPopup }, Cmd.none )
+
+        ( Playing game, OnClickedHideHistory ) ->
+            ( Playing { game | showProgressPopup = False }, Cmd.none )
+
+        ( GameOver success endScore game, OnClickedHideHistory ) ->
+            ( GameOver success endScore { game | showProgressPopup = False }, Cmd.none )
 
         -- OTHER
         _ ->
@@ -278,10 +399,7 @@ processRoundFinished : GameModel -> ( Model, Cmd Msg )
 processRoundFinished game =
     if List.length (allWrongAnswers game) > 5 then
         -- Too many wrong answers
-        ( GameOver False (gameToEndScore game) game
-          -- TODO: score
-        , Cmd.none
-        )
+        gameOver Failed game
 
     else
         let
@@ -293,10 +411,7 @@ processRoundFinished game =
         in
         if finished then
             -- word round finished, we found all correctly
-            ( GameOver True (gameToEndScore game) game
-              -- TODO: score
-            , Cmd.none
-            )
+            gameOver Succeeded game
 
         else
             ( Playing game, Cmd.none )
@@ -387,6 +502,32 @@ line =
 
 view : Device -> Model -> Element Msg
 view device model =
+    let
+        popup : Bool -> Progress -> Element Msg
+        popup show progress =
+            if show then
+                row [ width fill, height fill, Element.Background.color <| rgba 0 0 0 0.1, Element.Events.onClick OnClickedHideHistory ]
+                    [ column [ width (px 300), height fill, alignRight, Element.Background.color UI.accentColorLight, padding 20, spacing 20 ]
+                        [ el [ width fill ] <| UI.heading "Play history:"
+                        , Dict.toList progress
+                            |> List.map
+                                (\( rata, dp ) ->
+                                    [ el [ width fill, Element.Background.color <| dayProgressToColor dp, UI.rounded 20, height (px 40) ] <|
+                                        row [ centerX, centerY, spacing 10 ]
+                                            [ text <| Date.format "dd-MMM-yyyy" <| Date.fromRataDie rata
+                                            , text <| dayProgressToEmoji dp
+                                            ]
+                                    ]
+                                )
+                            |> List.concat
+                            |> column
+                                [ width fill, height fill, spacing 10, padding 5, scrollbarY ]
+                        ]
+                    ]
+
+            else
+                none
+    in
     case model of
         Playing game ->
             let
@@ -403,7 +544,7 @@ view device model =
             in
             column [ width fill, height fill, inFront UI.viewFooter ]
                 [ viewTopBar
-                , row [ height fill, width fill, paddingXY 40 0 ]
+                , row [ height fill, width fill, paddingXY 40 0, inFront <| popup game.showProgressPopup game.progress ]
                     [ game.wordChain
                         |> List.indexedMap
                             (\wordId ( word, offset ) ->
@@ -431,18 +572,27 @@ view device model =
                         [ viewInput device game
                         , el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
                         , viewWrongAnwers <| wrongAnswersOf game
+                        , viewIsGameAReplay game
                         ]
                     ]
                 ]
 
-        GameOver success endScore game ->
+        GameOver state endScore game ->
             let
                 wordStateFn character =
                     WordChain.Show <| isCharacterKnown game character
+
+                success =
+                    case state of
+                        First s ->
+                            s
+
+                        Other s ->
+                            s
             in
             column [ width fill, height fill, inFront UI.viewFooter ]
                 [ viewTopBar
-                , row [ height fill, width fill, paddingXY 40 0 ]
+                , row [ height fill, width fill, paddingXY 40 0, inFront <| popup game.showProgressPopup game.progress ]
                     [ game.wordChain
                         |> List.indexedMap
                             (\wordId ( word, offset ) ->
@@ -470,30 +620,28 @@ view device model =
                         [ el [ centerX, centerY ] <|
                             column [ width (px 200), spacing 20 ]
                                 [ UI.heading <|
-                                    if success then
+                                    if success == Succeeded then
                                         "Well done!"
 
                                     else
                                         "Better next time!"
                                 , row [ width fill ] [ el [ alignLeft ] <| UI.niceText <| "Attemps:", el [ alignRight ] <| text <| String.fromInt <| List.length endScore.attempts ]
                                 , row [ width fill ] [ el [ alignLeft ] <| UI.niceText <| "Mistakes:", el [ alignRight ] <| text <| String.fromInt endScore.mistakes ]
-                                , if success then
-                                    viewGameOverAsSquares endScore
-
-                                  else
-                                    none
+                                , viewGameOverShare endScore game.today state
                                 ]
                         ]
                     ]
                 ]
 
-        Loading ->
+        _ ->
             UI.spinner
 
 
 viewTopBar =
     row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent UI.viewLogo ]
-        [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome ]
+        [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome
+        , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory
+        ]
 
 
 viewWordEnglish word =
@@ -591,35 +739,102 @@ viewWrongAnwers wrongAnswers =
         |> row [ spacing 10, height <| px 50, centerX ]
 
 
-viewGameOverAsSquares endScore =
+viewIsGameAReplay game =
+    el [ centerX, Element.Font.color <| UI.gray, Element.Font.size 14 ] <|
+        if Dict.member (Date.toRataDie game.today) game.progress then
+            column [ spacing 5 ]
+                [ paragraph [] [ text "You already played today." ]
+                , paragraph [] [ text "This game is a replay and will not count towards your score." ]
+                ]
+
+        else
+            none
+
+
+dayProgressToEmoji progress =
+    case progress of
+        Succeeded ->
+            "😌"
+
+        Failed ->
+            "😐"
+
+        GiveUp ->
+            "😥"
+
+
+dayProgressToColor progress =
+    case progress of
+        Succeeded ->
+            UI.correctColorLight
+
+        Failed ->
+            UI.errorColorLight
+
+        GiveUp ->
+            UI.lightGray
+
+
+viewGameOverShare : EndScore -> Date.Date -> GameOverState -> Element Msg
+viewGameOverShare endScore today state =
     let
         square attempt =
-            el [ padding 1 ] <|
-                text <|
-                    case attempt of
-                        Correct ->
-                            "🟩"
+            case attempt of
+                Correct ->
+                    "🟩"
 
-                        Wrong ->
-                            "🟥"
+                Wrong ->
+                    "🟥"
 
-                        Almost ->
-                            "🟨"
+                Almost ->
+                    "🟨"
 
-        --squares =
-        --    endScore.attempts
-        --        |> List.map square
-        --recurse acc sqs =
-        --    case List.splitAt 8 sqs of
-        --        ( [], _ ) ->
-        --            List.reverse acc
-        --        ( s, more ) ->
-        --            recurse (row [ spacing 2 ] s :: acc) more
+        progress =
+            case state of
+                First s ->
+                    s
+
+                Other s ->
+                    s
+
+        recurse acc sqs =
+            case List.splitAt 5 sqs of
+                ( [], _ ) ->
+                    List.reverse acc
+
+                ( s, more ) ->
+                    recurse (String.join "" s :: acc) more
+
+        intoRows s =
+            recurse [] s
+
+        shareText =
+            "Chordle"
+                ++ "\n"
+                ++ Date.format "dd-MMM-yyyy" today
+                ++ "\n"
+                ++ dayProgressToEmoji progress
+                ++ " "
+                ++ (String.fromInt <| List.length endScore.attempts)
+                ++ "/"
+                ++ String.fromInt endScore.mistakes
+                ++ "\n"
+                ++ (endScore.attempts
+                        |> List.map square
+                        |> intoRows
+                        |> String.join "\n"
+                   )
     in
-    --endScore.attempts
-    --    |> List.map square
-    --    |> recurse []
-    --    |> column [ spacing 2, centerX, centerY ]
-    endScore.attempts
-        |> List.map square
-        |> paragraph []
+    case state of
+        First success ->
+            column [ centerX, UI.floating, padding 10, spacing 10 ]
+                [ text shareText
+                , UI.niceButton "Copy" (OnShareClicked shareText) Nothing
+                ]
+
+        _ ->
+            none
+
+
+subscriptions =
+    Storage.storageLoaded OnStorageLoaded

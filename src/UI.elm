@@ -50,8 +50,16 @@ errorColor =
     rgb255 255 111 145
 
 
+errorColorLight =
+    rgb255 255 131 165
+
+
 correctColor =
     rgb255 0 201 167
+
+
+correctColorLight =
+    rgb255 120 221 187
 
 
 black =
@@ -64,6 +72,10 @@ white =
 
 gray =
     rgb 0.5 0.5 0.5
+
+
+lightGray =
+    rgb 0.8 0.8 0.8
 
 
 floating =

@@ -13,9 +13,11 @@
             "elm/random": "1.0.0",
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
+            "elm-community/dict-extra": "2.4.0",
             "elm-community/list-extra": "8.5.2",
             "elm-community/random-extra": "3.2.0",
             "elm-community/string-extra": "4.0.1",
+            "justinmimbs/date": "4.0.1",
             "justinmimbs/time-extra": "1.1.1",
             "mdgriffith/elm-ui": "1.1.8"
         },
@@ -23,8 +25,7 @@
             "elm/parser": "1.1.0",
             "elm/regex": "1.0.0",
             "elm/url": "1.0.0",
-            "elm/virtual-dom": "1.0.2",
-            "justinmimbs/date": "4.0.1"
+            "elm/virtual-dom": "1.0.2"
         }
     },
     "test-dependencies": {
