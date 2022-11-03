@@ -721,20 +721,39 @@ viewInput device game =
 
 viewWrongAnwers : List PinyinPart -> Element Msg
 viewWrongAnwers wrongAnswers =
-    wrongAnswers
+    (List.map (\w -> Just w) wrongAnswers ++ List.repeat (6 - List.length wrongAnswers) Nothing)
         |> List.map
-            (\part ->
+            (\mPart ->
                 el
                     [ UI.floating
                     , UI.rounded 5
                     , height <| px 50
+                    , width <| minimum 50 shrink
                     , paddingXY 10 0
                     , Element.Background.color <|
-                        rgb255 226 226 226
+                        case mPart of
+                            Just _ ->
+                                UI.errorColorLight
+
+                            _ ->
+                                rgb255 226 226 226
+                    , Element.Border.color <|
+                        case mPart of
+                            Just _ ->
+                                UI.errorColor
+
+                            _ ->
+                                rgb255 226 226 226
+                    , Element.Border.width 2
                     ]
                 <|
                     el [ centerX, centerY, Element.Font.size 20 ] <|
-                        text (formatPinyin part)
+                        case mPart of
+                            Just part ->
+                                text (formatPinyin part)
+
+                            Nothing ->
+                                text "     "
             )
         |> row [ spacing 10, height <| px 50, centerX ]
 
