@@ -302,7 +302,7 @@ clt123 =
     , newWord "层" "ceng2" "MEASURE WORD: story, floor"
     , newWord "查" "cha2" "VERB: to check, to look up"
     , newWord "茶" "cha2" "NOUN: tea"
-    , newWord "插楼" "cha2lou2" "NOUN: tearoom, tea house"
+    , newWord "茶楼" "cha2lou2" "NOUN: tearoom, tea house"
     , newWord "差" "cha4" "VERB: to be short of, to lack|ADJECTIVE: not up to standard, bad"
     , newWord "长" "chang2" "ADJECTIVE: long"
     , newWord "常" "chang2" "ADVERB: often"
@@ -911,7 +911,7 @@ clt123 =
     , newWord "年代" "nian2dai4" "NOUN: age, time, date|NOUN: decade of a century: 八十.. = 1980s"
     , newWord "旧" "jiu4" "ADJECTIVE: past, bygone, old, used, former"
     , newWord "聪明" "cong1ming5" "ADJECTIVE: intelligent, clever"
-    , newWord "完了" "wan2le5" "VERB: to finish, to be over"
+    , newWord "完" "wan2" "VERB: to finish, to be over"
     , newWord "睡衣" "shui4yi1" "NOUN: pyjamas, nightclothes"
     , newWord "内衣" "nei4yi1" "NOUN: underwear, underclothes"
     , newWord "内裤" "nei4ku4" "NOUN: underpants, panties"
@@ -985,4 +985,7 @@ clt4 =
     , newWord "市长" "shi4zhang3" "NOUN: mayor"
     , newWord "院长" "yuan4zhang3" "NOUN: dean"
     , newWord "校长" "xiao4zhang3" "NOUN: headmaster (of a school), principal"
+
+    -- 11月10号
+    , newWord "离开" "li2kai1" "VERB: to leave, to depart"
     ]
