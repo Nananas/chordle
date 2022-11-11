@@ -253,8 +253,9 @@ viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
                                 , width fill
                                 , height fill
                                 , mouseOver [ Element.Background.color UI.accentColorLight ]
+                                , Element.Events.onMouseDown <| onCharMsg key
                                 ]
-                                { onPress = Just <| onCharMsg key
+                                { onPress = Nothing
                                 , label = el [ centerX, centerY ] (text key)
                                 }
                         )
@@ -269,8 +270,9 @@ viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
                             , width fill
                             , height fill
                             , mouseOver [ Element.Background.color UI.accentColorLight ]
+                            , Element.Events.onMouseDown <| onCharMsg ch
                             ]
-                            { onPress = Just <| onCharMsg ch
+                            { onPress = Nothing
                             , label = el [ centerX, centerY ] <| icon 20
                             }
                     )
