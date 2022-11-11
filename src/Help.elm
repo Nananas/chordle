@@ -14,6 +14,15 @@ import UI
 import Words exposing (allWords)
 
 
+view : Bool -> Bool -> msg -> (String -> msg) -> Element msg
+view showHelp onMobile toggleMsg noOpMsg =
+    if onMobile then
+        viewMobile showHelp toggleMsg noOpMsg
+
+    else
+        viewDesktop showHelp toggleMsg noOpMsg
+
+
 viewDesktop : Bool -> msg -> (String -> msg) -> Element msg
 viewDesktop showHelp toggleMsg noOpMsg =
     if showHelp then
@@ -132,10 +141,8 @@ viewDesktop showHelp toggleMsg noOpMsg =
                     ]
                 , column [ paddingXY 0 10 ]
                     [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty) ++ " words!" ]
-
-                --, paragraph [ paddingXY 0 10 ]
-                --[ text "To enable notifications every 30 minutes, press the \"Enable Notifications\" button." ]
                 ]
+            , UI.viewFooter
             ]
 
     else
@@ -188,8 +195,7 @@ viewMobile showHelp toggleMsg noOpMsg =
                         ]
                 ]
             , column [ spacing 3, width fill ]
-                [ text "2. Either press the 'Ok' button or press Enter"
-                , text "    on the keyboard"
+                [ text "2. Then press the 'Ok' button"
                 , el [ width fill ] <|
                     row
                         [ width fill
@@ -261,6 +267,7 @@ viewMobile showHelp toggleMsg noOpMsg =
                 ]
             , column [ paddingXY 0 10 ]
                 [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty) ++ " words" ]
+            , UI.viewFooter
             ]
 
     else

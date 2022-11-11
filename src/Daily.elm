@@ -2,6 +2,7 @@ module Daily exposing (..)
 
 import Browser.Dom
 import Clipboard
+import Common
 import Date
 import Dict exposing (Dict)
 import Dict.Extra as Dict
@@ -16,6 +17,7 @@ import Icons
 import Json.Decode
 import Json.Encode
 import List.Extra as List
+import MobileUI
 import Process
 import Random
 import Storage exposing (Storage)
@@ -55,6 +57,9 @@ type Msg
     | OnShareClicked String
     | OnClickedToggleShowHistory
     | OnClickedHideHistory
+    | KeyboardInput String
+    | KeyboardBackspace
+    | KeyboardClear
 
 
 type Model
@@ -355,6 +360,17 @@ update msg model =
         ( Playing game, OnMouseLeaveCharacter ) ->
             ( Playing { game | showPopupForCharacter = Nothing }, Cmd.none )
 
+        -- KEYBOARD
+        ( Playing game, KeyboardInput char ) ->
+            ( Playing { game | currentInput = game.currentInput ++ char }, Cmd.none )
+
+        ( Playing game, KeyboardBackspace ) ->
+            ( Playing { game | currentInput = String.dropRight 1 game.currentInput }, Cmd.none )
+
+        ( Playing game, KeyboardClear ) ->
+            ( Playing { game | currentInput = "" }, Cmd.none )
+
+        -- OTHER
         ( GameOver success endScore game, OnMouseEnterCharacter id ) ->
             ( GameOver success endScore { game | showPopupForCharacter = Just id }, Cmd.none )
 
@@ -496,20 +512,17 @@ wrongAnswersOf game =
         |> List.filter (\part -> not <| isPinyinValid part game.wordChain)
 
 
-line =
-    el [ width fill, height <| px 1, Element.Background.color <| rgba 0.8 0.8 0.8 1 ] none
-
-
 view : Device -> Model -> Element Msg
 view device model =
     let
-        popup : Bool -> Progress -> Element Msg
-        popup show progress =
+        historyPopup : Date.Date -> Bool -> Progress -> Element Msg
+        historyPopup today show progress =
             if show then
                 row [ width fill, height fill, Element.Background.color <| rgba 0 0 0 0.1, Element.Events.onClick OnClickedHideHistory ]
                     [ column [ width (px 300), height fill, alignRight, Element.Background.color UI.accentColorLight, padding 20, spacing 20 ]
                         [ el [ width fill ] <| UI.heading "Play history:"
                         , Dict.toList progress
+                            |> List.reverse
                             |> List.map
                                 (\( rata, dp ) ->
                                     [ el [ width fill, Element.Background.color <| dayProgressToColor dp, UI.rounded 20, height (px 40) ] <|
@@ -527,6 +540,40 @@ view device model =
 
             else
                 none
+
+        onMobile =
+            Utils.isOnMobile device
+
+        wordList game wordStateFn =
+            let
+                offsetElements offset =
+                    if onMobile then
+                        []
+
+                    else
+                        List.repeat offset (el [ width <| px <| 50 ] none)
+            in
+            game.wordChain
+                |> List.indexedMap
+                    (\wordId ( word, offset ) ->
+                        row [ width fill, spacing 20, padding 5 ]
+                            [ offsetElements offset
+                                ++ (word.characters
+                                        |> List.indexedMap
+                                            (\id character ->
+                                                viewSingleHanzi
+                                                    onMobile
+                                                    wordStateFn
+                                                    game.showPopupForCharacter
+                                                    wordId
+                                                    id
+                                                    character
+                                            )
+                                   )
+                                |> row [ spacing 10, width <| fillPortion 1 ]
+                            , el [ width <| fillPortion 2 ] <| viewWordEnglish word
+                            ]
+                    )
     in
     case model of
         Playing game ->
@@ -542,40 +589,21 @@ view device model =
                     else
                         WordChain.Unknown
             in
-            column [ width fill, height fill, inFront UI.viewFooter ]
-                [ viewTopBar
-                , row [ height fill, width fill, paddingXY 40 0, inFront <| popup game.showProgressPopup game.progress ]
-                    [ game.wordChain
-                        |> List.indexedMap
-                            (\wordId ( word, offset ) ->
-                                row [ width fill, spacing 20, padding 5 ]
-                                    [ List.repeat offset (el [ width <| px <| 50 ] none)
-                                        ++ (word.characters
-                                                |> List.indexedMap
-                                                    (\id character ->
-                                                        viewSingleHanzi
-                                                            wordStateFn
-                                                            game.showPopupForCharacter
-                                                            wordId
-                                                            id
-                                                            character
-                                                    )
-                                           )
-                                        |> row [ spacing 10, width <| fillPortion 1 ]
-                                    , viewWordEnglish word
-                                    ]
-                            )
-                        |> List.intersperse line
-                        |> column [ width fill, centerY, spacing 4 ]
-                        |> el [ width <| fillPortion 1 ]
-                    , column [ width <| fillPortion 1, spacing 20 ]
-                        [ viewInput device game
-                        , el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
-                        , viewWrongAnwers <| wrongAnswersOf game
-                        , viewIsGameAReplay game
-                        ]
+            Common.viewContainer onMobile
+                True
+                { popup = historyPopup game.today game.showProgressPopup game.progress
+                , topbar = viewTopBar
+                , wordlist = wordList game wordStateFn
+                , bottom =
+                    [ Common.viewInput onMobile game { msgUserPressedEnter = UserPressedEnter, msgInputHanzi = InputHanzi }
+                    , Common.viewWrongAnwers onMobile (wrongAnswersOf game)
+                    , el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+                    , viewIsGameAReplay game
                     ]
-                ]
+                , msgKeyboardInput = KeyboardInput
+                , msgKeyboardBackspace = KeyboardBackspace
+                , msgKeyboardClear = KeyboardClear
+                }
 
         GameOver state endScore game ->
             let
@@ -590,35 +618,21 @@ view device model =
                         Other s ->
                             s
             in
-            column [ width fill, height fill, inFront UI.viewFooter ]
-                [ viewTopBar
-                , row [ height fill, width fill, paddingXY 40 0, inFront <| popup game.showProgressPopup game.progress ]
-                    [ game.wordChain
-                        |> List.indexedMap
-                            (\wordId ( word, offset ) ->
-                                row [ width fill, spacing 20, padding 5 ]
-                                    [ List.repeat offset (el [ width <| px <| 50 ] none)
-                                        ++ (word.characters
-                                                |> List.indexedMap
-                                                    (\id character ->
-                                                        viewSingleHanzi
-                                                            wordStateFn
-                                                            game.showPopupForCharacter
-                                                            wordId
-                                                            id
-                                                            character
-                                                    )
-                                           )
-                                        |> row [ spacing 10, width <| fillPortion 1 ]
-                                    , viewWordEnglish word
-                                    ]
-                            )
-                        |> List.intersperse line
-                        |> column [ width fill, centerY, spacing 4 ]
-                        |> el [ width <| fillPortion 1 ]
-                    , column [ width <| fillPortion 1 ]
-                        [ el [ centerX, centerY ] <|
-                            column [ width (px 200), spacing 20 ]
+            Common.viewContainer onMobile
+                False
+                { popup = historyPopup game.today game.showProgressPopup game.progress
+                , topbar = viewTopBar
+                , wordlist = wordList game wordStateFn
+                , bottom =
+                    [ el [ width fill, height shrink, paddingXY 0 20 ] <|
+                        (if onMobile then
+                            column
+
+                         else
+                            row
+                        )
+                            [ spacing 50, centerX, centerY ]
+                            [ column [ width (px 200), spacing 20 ]
                                 [ UI.heading <|
                                     if success == Succeeded then
                                         "Well done!"
@@ -627,18 +641,21 @@ view device model =
                                         "Better next time!"
                                 , row [ width fill ] [ el [ alignLeft ] <| UI.niceText <| "Attemps:", el [ alignRight ] <| text <| String.fromInt <| List.length endScore.attempts ]
                                 , row [ width fill ] [ el [ alignLeft ] <| UI.niceText <| "Mistakes:", el [ alignRight ] <| text <| String.fromInt endScore.mistakes ]
-                                , viewGameOverShare endScore game.today state
                                 ]
-                        ]
+                            , viewGameOverShare endScore game.today state
+                            ]
                     ]
-                ]
+                , msgKeyboardInput = KeyboardInput
+                , msgKeyboardBackspace = KeyboardBackspace
+                , msgKeyboardClear = KeyboardClear
+                }
 
         _ ->
             UI.spinner
 
 
 viewTopBar =
-    row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent UI.viewLogo ]
+    row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Daily" ]
         [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome
         , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory
         ]
@@ -648,11 +665,11 @@ viewWordEnglish word =
     word.english
         |> String.split "|"
         |> List.map (\txt -> paragraph [ Element.Font.size 16 ] [ text txt ])
-        |> column [ spacing 5, width <| fillPortion 1, alignLeft ]
+        |> column [ spacing 5, alignLeft ]
 
 
-viewSingleHanzi wordStateFn showPopupForCharacter wordId id character =
-    WordChain.viewSingleHanzi
+viewSingleHanzi onMobile wordStateFn showPopupForCharacter wordId id character =
+    WordChain.viewSingleHanzi onMobile
         { state = wordStateFn character
         , showPopup = showPopupForCharacter
         , onMouseEnterCharacterMsg = OnMouseEnterCharacter
@@ -661,101 +678,6 @@ viewSingleHanzi wordStateFn showPopupForCharacter wordId id character =
         , id = id
         , character = character
         }
-
-
-viewInput : Device -> GameModel -> Element Msg
-viewInput device game =
-    el [ width fill, padding 10 ] <|
-        row
-            [ width fill
-            , Element.Border.widthEach
-                { top = 0
-                , left = 0
-                , right = 0
-                , bottom = 2
-                }
-            , spacing 20
-            ]
-            [ case device.class of
-                Phone ->
-                    text game.currentInput
-
-                _ ->
-                    Element.Input.text
-                        [ Utils.onEnter UserPressedEnter
-                        , htmlAttribute <| Html.Attributes.id idInput
-                        , Element.Border.width 0
-                        ]
-                        { onChange = InputHanzi
-                        , text = game.currentInput
-                        , placeholder =
-                            Just <|
-                                Element.Input.placeholder [ Element.Font.size 14 ] <|
-                                    text <|
-                                        "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
-                                            ++ (if Utils.isOnDesktop device then
-                                                    " or the Enter key"
-
-                                                else
-                                                    ""
-                                               )
-                        , label = Element.Input.labelHidden ""
-                        }
-            , Element.Input.button
-                [ mouseOver [ Element.Font.color UI.accentColorHighlight ]
-                , Element.Font.color UI.accentColor
-                , Element.Background.color UI.white
-                , width shrink
-                , height <| px 40
-                , width <| px 40
-                , Element.Border.rounded 10
-                , alignRight
-                ]
-                { onPress = Just UserPressedEnter
-                , label =
-                    el [ centerY, centerX, paddingXY 20 0, spacing 20 ] <|
-                        text "Ok"
-                }
-            ]
-
-
-viewWrongAnwers : List PinyinPart -> Element Msg
-viewWrongAnwers wrongAnswers =
-    (List.map (\w -> Just w) wrongAnswers ++ List.repeat (6 - List.length wrongAnswers) Nothing)
-        |> List.map
-            (\mPart ->
-                el
-                    [ UI.floating
-                    , UI.rounded 5
-                    , height <| px 50
-                    , width <| minimum 50 shrink
-                    , paddingXY 10 0
-                    , Element.Background.color <|
-                        case mPart of
-                            Just _ ->
-                                UI.errorColorLight
-
-                            _ ->
-                                rgb255 226 226 226
-                    , Element.Border.color <|
-                        case mPart of
-                            Just _ ->
-                                UI.errorColor
-
-                            _ ->
-                                rgb255 226 226 226
-                    , Element.Border.width 2
-                    ]
-                <|
-                    el [ centerX, centerY, Element.Font.size 20 ] <|
-                        case mPart of
-                            Just part ->
-                                text (formatPinyin part)
-
-                            Nothing ->
-                                text "     "
-            )
-        |> row [ spacing 10, height <| px 50, centerX ]
 
 
 viewIsGameAReplay game =

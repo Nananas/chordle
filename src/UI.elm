@@ -97,13 +97,14 @@ niceButton text onClick mIcon =
 
 niceToggleButton text onClick mIcon state =
     niceButtonWith
-        (if state == True then
-            [ floating, mouseOver [ Element.Background.color accentColorHighlight ] ]
+        (mouseOver [ Element.Background.color accentColorHighlight ]
+            :: (if state == True then
+                    []
 
-         else
-            [ Element.Background.color accentColorHighlight
-            , mouseOver [ Element.Background.color accentColor ]
-            ]
+                else
+                    [ Element.Font.strike
+                    ]
+               )
         )
         text
         onClick
@@ -313,7 +314,9 @@ modal toggleMsg content =
                 , rounded 10
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "auto"
                 ]
-                content
+                (content
+                    ++ [ el [ alignBottom, centerX ] <| niceButton "Close" toggleMsg Nothing ]
+                )
 
 
 viewFooter =
@@ -335,10 +338,10 @@ viewFooter =
             }
 
 
-viewLogo =
+viewLogo txt =
     el [ width fill, height fill ] <|
         el [ centerX, centerY, Element.Font.color white, Element.Font.bold ] <|
-            text "Chordle"
+            text ("Chordle " ++ txt)
 
 
 onEnter : msg -> Element.Attribute msg

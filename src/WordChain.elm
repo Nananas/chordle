@@ -145,9 +145,23 @@ type alias ViewSingleHanziOptions msg =
     }
 
 
-viewSingleHanzi : ViewSingleHanziOptions msg -> Element msg
-viewSingleHanzi { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharacterMsg, wordId, id, character } =
+viewSingleHanzi : Bool -> ViewSingleHanziOptions msg -> Element msg
+viewSingleHanzi onMobile { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharacterMsg, wordId, id, character } =
     let
+        fontsize =
+            if onMobile then
+                16
+
+            else
+                20
+
+        size =
+            if onMobile then
+                40
+
+            else
+                50
+
         popup =
             case showPopup of
                 Nothing ->
@@ -187,7 +201,7 @@ viewSingleHanzi { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharac
                     shrink
 
                 _ ->
-                    px 50
+                    px size
 
          --    Known
          --if known then
@@ -195,7 +209,7 @@ viewSingleHanzi { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharac
          --else if similar then
          --    shrink
          --else
-         , height <| px 50
+         , height <| px size
          , Element.Font.color <|
             case state of
                 Show _ ->
@@ -239,7 +253,7 @@ viewSingleHanzi { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharac
                )
         )
     <|
-        el [ centerX, centerY, Element.Font.size 20 ] <|
+        el [ centerX, centerY, Element.Font.size fontsize ] <|
             text <|
                 case state of
                     Similar ->

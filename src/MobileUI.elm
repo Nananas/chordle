@@ -300,7 +300,13 @@ viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
                     }
                 ]
             )
-        |> Element.column [ spacing 4, width fill, height fill ]
+        |> Element.column
+            [ spacing 4
+            , width fill
+            , height <| minimum 200 fill
+            , Element.Border.widthEach { top = 1, bottom = 1, left = 0, right = 0 }
+            , Element.Border.color UI.accentColorLight
+            ]
 
 
 modal toggleMsg content =
@@ -329,7 +335,10 @@ modal toggleMsg content =
             , Element.Background.color UI.accentColorLight
             , spacing 20
             , htmlAttribute <| Html.Attributes.style "pointer-events" "auto"
+            , Element.Font.size 14
             ]
             (content
-                ++ [ el [ alignBottom, centerX ] <| niceButton "Close" toggleMsg Nothing ]
+                ++ [ el [ alignBottom, centerX ] <|
+                        niceButton "Close" toggleMsg Nothing
+                   ]
             )

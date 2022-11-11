@@ -3,6 +3,7 @@ module Training exposing (..)
 import Browser
 import Browser.Dom
 import Browser.Events
+import Common
 import Dict exposing (Dict)
 import Element exposing (..)
 import Element.Background as Background
@@ -123,10 +124,6 @@ inactivityTime =
 
 idNextButton =
     "next-btn"
-
-
-idInput =
-    "text-input"
 
 
 {-| Used by wordchain generator
@@ -287,7 +284,7 @@ update msg model =
                             wordsFound
                     }
                 , Process.sleep 100
-                    |> Task.andThen (\_ -> Browser.Dom.focus idInput)
+                    |> Task.andThen (\_ -> Browser.Dom.focus Common.idInput)
                     |> Task.attempt (\_ -> NoOp)
                 ]
             )
@@ -370,7 +367,7 @@ update msg model =
                 ( Ready game
                 , Cmd.batch
                     [ Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
-                    , Browser.Dom.focus idInput
+                    , Browser.Dom.focus Common.idInput
                         |> Task.attempt (\_ -> NoOp)
                     ]
                 )
@@ -427,7 +424,8 @@ update msg model =
                             (\v ->
                                 case v of
                                     Nothing ->
-                                        Just True
+                                        -- Default state is True
+                                        Just False
 
                                     Just active ->
                                         Just <| not active
@@ -511,7 +509,7 @@ restartGame model =
         }
     , Cmd.batch
         [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords model.dictsActive)
-        , Browser.Dom.focus idInput
+        , Browser.Dom.focus Common.idInput
             |> Task.attempt (\_ -> NoOp)
         , Storage.setStorage
             { name = "words-found"
@@ -551,11 +549,7 @@ view : Device -> Model -> Element Msg
 view device model =
     case model of
         Ready game ->
-            if isOnMobile device then
-                viewMobile game
-
-            else
-                viewDesktop game
+            viewGame device game
 
         GameFinished game ->
             viewGameFinished game.gameStats
@@ -564,122 +558,98 @@ view device model =
             UI.spinner
 
 
-viewMobile : GameModel -> Element Msg
-viewMobile game =
+viewGame : Device -> GameModel -> Element Msg
+viewGame device game =
     let
+        onMobile =
+            isOnMobile device
+
         modals =
             column
                 [ width fill
                 , height fill
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                 ]
-                [ viewDictionaryModal mobile game
-                , Help.viewMobile game.showHelp OnToggleHelp NoOpString
+                [ viewDictionaryModal onMobile game
+                , Help.view game.showHelp onMobile OnToggleHelp NoOpString
                 ]
-    in
-    column [ width fill, height fill ]
-        [ mobileViewTopBar game
-        , row [ width fill, height fill, inFront modals ]
-            [ el [ height fill, width fill ] <|
-                column [ width fill, height fill, spacing 20, paddingXY 0 10 ]
-                    [ column [ width fill, height shrink, spacing 20, UI.floating, padding 10 ]
-                        (List.indexedMap
-                            (\wordId word ->
-                                row [ width fill, spacing 20 ]
-                                    [ el [ width <| fillPortion 1 ] <| viewWordAnswers game wordId word
-                                    , el [ width <| fillPortion 1 ] <| viewWordEnglishMobile word
-                                    ]
-                            )
-                            game.wordChain
-                        )
-                    , viewWrongAnwers <| allWrongAnswers game
-                    , case game.gameState of
-                        NotDone ->
-                            el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
 
-                        _ ->
-                            el [ centerX, height <| px 40 ] none
-                    , case game.gameState of
-                        NotDone ->
-                            viewInput mobile game
-
-                        _ ->
-                            UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
-                    , if game.useScreenKeyboardOnMobile then
-                        el [ alignBottom, width fill, height <| maximum 300 fill ] <| MobileUI.viewKeyboard KeyboardInput KeyboardBackspace KeyboardClear
-
-                      else
-                        none
-                    ]
-            ]
-        ]
-
-
-viewDesktop : GameModel -> Element Msg
-viewDesktop game =
-    let
-        modals =
-            row [ width fill, height fill, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ]
-                [ viewDictionaryModal desktop game
-                , Help.viewDesktop game.showHelp OnToggleHelp NoOpString
-                ]
-    in
-    column [ width fill, height fill, inFront UI.viewFooter ]
-        [ viewTopBar desktop game
-        , row [ width fill, height fill, inFront modals ]
-            [ el [ height fill, width <| fillPortion 1 ] none
-            , el [ height fill, width <| fillPortion 5 ] <|
-                column [ centerX, centerY, spacing 50 ]
-                    [ column [ spacing 20, UI.floating, padding 40 ]
-                        (List.indexedMap
-                            (\wordId word ->
-                                row [ width <| px 600, spacing 20 ]
-                                    [ el [ width <| fillPortion 1 ] <| viewWordAnswers game wordId word
-                                    , el [ width <| fillPortion 1 ] <| viewWordEnglish word
-                                    ]
-                            )
-                            game.wordChain
-                        )
-                    , viewWrongAnwers <| allWrongAnswers game
-                    , case game.gameState of
-                        NotDone ->
-                            el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
-
-                        _ ->
-                            el [ centerX, height <| px 40 ] none
-                    , case game.gameState of
-                        NotDone ->
-                            viewInput desktop game
-
-                        _ ->
-                            UI.niceButtonWith [ centerX, htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
-                    ]
-            , el [ height fill, width <| fillPortion 1 ] none
-            ]
-        ]
-
-
-viewDictionaryModal : Device -> GameModel -> Element Msg
-viewDictionaryModal device game =
-    let
-        modalFn =
-            if isOnDesktop device then
-                UI.modal
+        contentSpacing =
+            if onMobile then
+                10
 
             else
+                20
+    in
+    Common.viewContainer onMobile
+        True
+        { popup = modals
+        , topbar = viewTopBar onMobile game
+        , wordlist =
+            game.wordChain
+                |> List.indexedMap
+                    (\wordId word ->
+                        row [ width fill, spacing 20, padding 5 ]
+                            [ el [ width <| fillPortion 1 ] <| viewWordAnswers onMobile game wordId word
+                            , el [ width <| fillPortion 2 ] <| Common.viewWordEnglish onMobile word
+                            ]
+                    )
+        , bottom =
+            [ case game.gameState of
+                NotDone ->
+                    Common.viewInput onMobile game { msgUserPressedEnter = UserPressedEnter, msgInputHanzi = InputHanzi }
+
+                FilledInCorrectly ->
+                    el [ height (px 50), centerX ] <| UI.niceText "Good job!"
+
+                TooManyWrongAnswers ->
+                    el [ height (px 50), centerX ] <| UI.niceText "Better next time..."
+            , Common.viewWrongAnwers onMobile (wrongAnswersOf game)
+            , case game.gameState of
+                NotDone ->
+                    el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+
+                _ ->
+                    el [ centerX ] <| UI.niceButtonWith [ htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
+            , el [ centerX, Font.color <| UI.gray, Font.size 14 ] <| none
+            ]
+        , msgKeyboardInput = KeyboardInput
+        , msgKeyboardBackspace = KeyboardBackspace
+        , msgKeyboardClear = KeyboardClear
+        }
+
+
+viewDictionaryModal : Bool -> GameModel -> Element Msg
+viewDictionaryModal onMobile game =
+    let
+        modalFn =
+            if onMobile then
                 MobileUI.modal
+
+            else
+                UI.modal
+
+        minSize =
+            if onMobile then
+                300
+
+            else
+                600
+
+        wordCount =
+            wordsInActiveDict game.dictsActive
     in
     if game.showDictionaryModal then
         modalFn OnToggleDictionaryModal
-            [ row [ width <| minimum 400 fill ]
+            [ row [ width <| minimum minSize fill ]
                 [ el [ alignLeft ] <| UI.heading "Dictionary"
                 , el [ alignRight ] <|
                     UI.niceButton
                         (if game.unhideDictionary then
-                            "Hide all words"
+                            "Hide all " ++ String.fromInt wordCount ++ " words"
 
                          else
-                            "Show all words"
+                            "Show all " ++ String.fromInt wordCount ++ " words"
                         )
                         OnToggleDictionaryShowAllWords
                         (Just <|
@@ -719,31 +689,51 @@ viewDictionaryModal device game =
                                             else
                                                 UI.black
                                         ]
-                                        [ paragraph [ width <| minimum 100 <| fillPortion 1, Font.size 24, Font.alignRight ] [ text hanzi ]
-                                        , paragraph [ width <| fillPortion 2, Font.size 16, Font.center ] [ text <| maybeHide pinyin ]
-                                        , paragraph [ width <| fillPortion 3, Font.size 16 ] [ text <| maybeHide english ]
+                                        [ paragraph [ width <| fillPortion 1, Font.alignRight ] [ text hanzi ]
+                                        , paragraph [ width <| fillPortion 3, Font.center ] [ text <| maybeHide pinyin ]
+                                        , paragraph [ width <| fillPortion 7 ] [ text <| maybeHide english ]
                                         ]
                                )
                     )
-                |> column [ scrollbarY, height fill, width fill, padding 10, spacing 10 ]
+                |> column
+                    [ scrollbarY
+                    , height fill
+                    , width fill
+                    , padding 10
+                    , spacing 10
+                    ]
             ]
 
     else
         none
 
 
-viewTopBar : Device -> GameModel -> Element Msg
-viewTopBar device game =
+viewTopBar : Bool -> GameModel -> Element Msg
+viewTopBar onMobile game =
     let
         buttonFn =
-            case device.class of
-                Desktop ->
-                    \str onClick icon -> UI.niceButton str onClick (Just icon)
+            if onMobile then
+                \str onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
 
-                _ ->
-                    \str onClick icon -> UI.niceIconButton icon onClick
+            else
+                \str onClick icon -> UI.niceButton str onClick (Just icon)
+
+        iconSize =
+            if onMobile then
+                16
+
+            else
+                20
     in
-    row [ height <| px 50, width fill, Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent UI.viewLogo ]
+    row
+        ([ height <| px 50, width fill, Background.color UI.accentColor ]
+            ++ (if onMobile then
+                    [ spacing 4, behindContent <| UI.viewLogo "Training" ]
+
+                else
+                    [ paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Training" ]
+               )
+        )
         [ el [ alignLeft ] <| UI.niceIconButton (Icons.arrowBack 20) OnClickedHome
         , el
             [ alignLeft
@@ -775,76 +765,22 @@ viewTopBar device game =
                                         ++ String.fromInt u
             ]
           <|
-            Element.Lazy.lazy2 viewWordsToGo game.dictsActive game.wordsFound
-        , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh 20)
-
-        --, el [ alignRight ] <|
-        --    buttonFn
-        --        (case model.notificationsEnabled of
-        --            Nothing ->
-        --                "Notifications"
-        --            Just True ->
-        --                "Disable Notifications"
-        --            Just False ->
-        --                "Enable Notifications"
-        --        )
-        --        OnToggleNotifications
-        --        (Icons.bell 20)
-        , el [ alignRight ] <| buttonFn "Dictionaries" OnToggleDictionaryModal (Icons.translate 20)
-        , buttonFn "Help" OnToggleHelp (Icons.questionmark 20)
+            Element.Lazy.lazy3 viewWordsToGo onMobile game.dictsActive game.wordsFound
+        , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh iconSize)
+        , el [ alignRight ] <| buttonFn "Dictionaries" OnToggleDictionaryModal (Icons.translate iconSize)
+        , buttonFn "Help" OnToggleHelp (Icons.questionmark iconSize)
         ]
 
 
-viewWordsToGo dictsActive wordsFound =
+viewWordsToGo onMobile dictsActive wordsFound =
     UI.niceTextWith [ Font.color UI.white ] <|
-        "Words to go: "
-            ++ (String.fromInt <| wordsToGo dictsActive wordsFound)
-
-
-mobileViewTopBar : GameModel -> Element Msg
-mobileViewTopBar game =
-    row [ height <| px 50, width fill, Background.color UI.accentColor ]
-        [ el [ width fill ] <|
-            el
-                [ centerX
-                , onRight <|
-                    el [] <|
-                        case game.showTodoUpdate of
-                            Nothing ->
-                                text <| ""
-
-                            Just u ->
-                                el
-                                    [ Font.color <|
-                                        if u < 0 then
-                                            UI.correctColor
-
-                                        else
-                                            UI.errorColor
-                                    , Font.bold
-                                    ]
-                                <|
-                                    text <|
-                                        "  "
-                                            ++ (if u > 0 then
-                                                    "+"
-
-                                                else
-                                                    ""
-                                               )
-                                            ++ String.fromInt u
-                ]
-            <|
-                MobileUI.niceTextWith [ Font.color UI.white ] <|
-                    "Words to go: "
-                        ++ (String.fromInt <| (List.length (allWords game.dictsActive) - List.length game.wordsFound))
-        , MobileUI.simpleIconButtonInverted (Icons.refresh 20) OnRestartClick
-            |> el [ alignRight ]
-        , MobileUI.simpleIconButtonInverted (Icons.translate 20) OnToggleDictionaryModal
-            |> el [ alignRight ]
-        , MobileUI.simpleIconButtonInverted (Icons.questionmark 20) OnToggleHelp
-            |> el [ alignRight ]
-        ]
+        let
+            total =
+                wordsInActiveDict dictsActive
+        in
+        (String.fromInt <| total - wordsToGo dictsActive wordsFound)
+            ++ "/"
+            ++ String.fromInt total
 
 
 viewGameFinished game =
@@ -858,29 +794,15 @@ viewGameFinished game =
             ]
 
 
-viewWordAnswers : GameModel -> Int -> Word -> Element Msg
-viewWordAnswers game wordId word =
+viewWordAnswers : Bool -> GameModel -> Int -> Word -> Element Msg
+viewWordAnswers onMobile game wordId word =
     word.characters
-        |> List.indexedMap (viewSingleHanzi game wordId)
+        |> List.indexedMap (viewSingleHanzi onMobile game wordId)
         |> row [ spacing 10 ]
 
 
-viewWordEnglish word =
-    word.english
-        |> String.split "|"
-        |> List.map (\txt -> paragraph [] [ text txt ])
-        |> column [ spacing 5, alignLeft ]
-
-
-viewWordEnglishMobile word =
-    word.english
-        |> String.split "|"
-        |> List.map (\txt -> paragraph [ Font.size 16 ] [ text txt ])
-        |> column [ spacing 5, alignLeft ]
-
-
-viewSingleHanzi : GameModel -> Int -> Int -> Character -> Element Msg
-viewSingleHanzi game wordId id character =
+viewSingleHanzi : Bool -> GameModel -> Int -> Int -> Character -> Element Msg
+viewSingleHanzi onMobile game wordId id character =
     let
         known =
             isCharacterKnown game character
@@ -904,6 +826,7 @@ viewSingleHanzi game wordId id character =
                     WordChain.Show known
     in
     WordChain.viewSingleHanzi
+        onMobile
         { state = state
         , showPopup = game.showPopupForCharacter
         , onMouseEnterCharacterMsg = OnMouseEnterCharacter
@@ -1013,80 +936,60 @@ viewSingleHanzi game wordId id character =
 --                    character.hanzi
 
 
-viewInput : Device -> GameModel -> Element Msg
-viewInput device game =
-    el [ width fill, padding 10 ] <|
-        row
-            [ width fill
-            , Border.widthEach
-                { top = 0
-                , left = 0
-                , right = 0
-                , bottom = 2
-                }
-            , spacing 20
-            ]
-            [ case device.class of
-                Phone ->
-                    text game.currentInput
+viewWrongAnwers : Bool -> List PinyinPart -> Element Msg
+viewWrongAnwers onMobile wrongAnswers =
+    let
+        size =
+            if onMobile then
+                40
 
-                _ ->
-                    Input.text
-                        [ onEnter UserPressedEnter
-                        , htmlAttribute <| Html.Attributes.id idInput
-                        , Border.width 0
-                        ]
-                        { onChange = InputHanzi
-                        , text = game.currentInput
-                        , placeholder =
-                            Just <|
-                                Input.placeholder [ Font.size 14 ] <|
-                                    text <|
-                                        "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
-                                            ++ (if isOnDesktop device then
-                                                    " or the Enter key"
+            else
+                50
 
-                                                else
-                                                    ""
-                                               )
-                        , label = Input.labelHidden ""
-                        }
-            , Input.button
-                [ mouseOver [ Font.color UI.accentColorHighlight ]
-                , Font.color UI.accentColor
-                , Background.color UI.white
-                , width shrink
-                , height <| px 40
-                , width <| px 40
-                , Border.rounded 10
-                , alignRight
-                ]
-                { onPress = Just UserPressedEnter
-                , label =
-                    el [ centerY, centerX, paddingXY 20 0, spacing 20 ] <|
-                        text "Ok"
-                }
-            ]
+        fontsize =
+            if onMobile then
+                14
 
-
-viewWrongAnwers : List PinyinPart -> Element Msg
-viewWrongAnwers wrongAnswers =
-    wrongAnswers
+            else
+                20
+    in
+    (List.map (\w -> Just w) wrongAnswers ++ List.repeat (6 - List.length wrongAnswers) Nothing)
         |> List.map
-            (\part ->
+            (\mPart ->
                 el
                     [ UI.floating
                     , UI.rounded 5
-                    , height <| px 50
+                    , height (px size)
+                    , width <|
+                        minimum size shrink
                     , paddingXY 10 0
                     , Background.color <|
-                        rgb255 226 226 226
+                        case mPart of
+                            Just _ ->
+                                UI.errorColorLight
+
+                            _ ->
+                                rgb255 226 226 226
+                    , Border.color <|
+                        case mPart of
+                            Just _ ->
+                                UI.errorColor
+
+                            _ ->
+                                rgb255 226 226 226
+                    , Border.width 2
                     ]
                 <|
-                    el [ centerX, centerY, Font.size 20 ] <|
-                        text (formatPinyin part)
+                    el [ centerX, centerY, Font.size fontsize ] <|
+                        case mPart of
+                            Just part ->
+                                text (formatPinyin part)
+
+                            Nothing ->
+                                text "     "
             )
-        |> row [ spacing 10, height <| px 50, centerX ]
+        |> row [ centerX, height (px size), centerY, spacing 5 ]
+        |> el [ width fill ]
 
 
 
@@ -1101,6 +1004,11 @@ dictActive game dictName =
 wordsToGo dictsActive wordsFound =
     Words.allWords dictsActive
         |> List.filter (\w -> not <| List.member w wordsFound)
+        |> List.length
+
+
+wordsInActiveDict dictsActive =
+    Words.allWords dictsActive
         |> List.length
 
 
@@ -1133,8 +1041,8 @@ isCharacterSimilar game character =
     List.any (\part -> part.pinyin == character.pinyinPart.pinyin) game.answers
 
 
-allWrongAnswers : GameModel -> List PinyinPart
-allWrongAnswers game =
+wrongAnswersOf : GameModel -> List PinyinPart
+wrongAnswersOf game =
     game.answers
         |> List.filter (\part -> not <| WordChain.isPinyinValid part game.wordChain)
 
@@ -1152,7 +1060,7 @@ processRoundFinished game =
             )
     in
     withFocusNextBtn <|
-        if List.length (allWrongAnswers game) > 5 then
+        if List.length (wrongAnswersOf game) > 5 then
             -- Too many wrong answers
             let
                 newGameStats =
