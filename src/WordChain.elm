@@ -71,6 +71,10 @@ singleChainGenerator ( from, to ) dictionary =
             )
 
 
+excludedHanzi =
+    [ "子" ]
+
+
 multiChainGenerator : Int -> List Word -> Random.Generator WordChain
 multiChainGenerator maximumAmount dictionary =
     let
@@ -83,9 +87,16 @@ multiChainGenerator maximumAmount dictionary =
         dictionaryWithoutWord dict word =
             List.remove word dict
 
+        isExcluded word =
+            word.characters
+                |> List.any (\ch -> List.member ch.hanzi excludedHanzi)
+
         one : List Word -> Random.Generator ( List Word, List Word )
         one dict =
-            Random.List.choose dict
+            dict
+                -- Exclude some very common characters from the initial search word
+                |> List.filter (not << isExcluded)
+                |> Random.List.choose
                 |> Random.map
                     (\( mWord, dictWithout ) ->
                         case mWord of
