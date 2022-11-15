@@ -6,6 +6,7 @@ import Element.Border
 import Element.Font
 import Element.Input
 import Html.Attributes
+import List.Extra as List
 import MobileUI
 import UI
 import Words exposing (PinyinPart, formatPinyin)
@@ -150,18 +151,30 @@ viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, m
     column [ width fill, height fill, inFront popup ]
         [ topbar
         , el [ scrollbarY, width fill, height fill, paddingXY 10 5 ] <|
-            el [ height shrink, width <| maximum 800 fill, centerX, centerY ] <|
-                (wordlist
-                    |> List.intersperse line
-                    |> column
+            el [ height shrink, centerX, centerY ] <|
+                let
+                    ( subwordlist1, subwordlist2 ) =
+                        wordlist
+                            |> List.splitAt 6
+                in
+                [ subwordlist1, subwordlist2 ]
+                    |> List.map
+                        (\subwordlist ->
+                            subwordlist
+                                |> List.intersperse line
+                                |> column
+                                    [ width fill
+                                    , centerY
+                                    , spacing 4
+                                    , Element.Border.color UI.accentColor
+                                    ]
+                                |> el [ width <| fillPortion 1, alignTop ]
+                        )
+                    |> row
                         [ width fill
-                        , centerY
-                        , spacing 4
                         , Element.Border.widthEach { top = 2, bottom = 2, left = 0, right = 0 }
-                        , Element.Border.color UI.accentColor
+                        , spacing 40
                         ]
-                    |> el [ width <| fillPortion 1 ]
-                )
         , el [ height shrink, width fill, alignBottom, Element.Border.shadow { offset = ( 0, -8 ), size = 0, blur = 8, color = rgba 0 0 0 0.2 } ] <|
             el [ paddingXY 10 0, width fill, height fill ] <|
                 column [ width fill, height fill ]

@@ -78,7 +78,7 @@ simpleIconButtonInverted icon onClick =
         }
 
 
-niceIconButton icon onClick =
+niceIconButton icon onClick tooltip =
     Element.Input.button
         [ mouseOver [ Element.Font.color UI.accentColorHighlight ]
         , Element.Font.color UI.white

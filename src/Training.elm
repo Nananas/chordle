@@ -734,7 +734,7 @@ viewTopBar onMobile game =
                     [ paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Training" ]
                )
         )
-        [ el [ alignLeft ] <| UI.niceIconButton (Icons.arrowBack 20) OnClickedHome
+        [ el [ alignLeft ] <| UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
         , el
             [ alignLeft
             , onRight <|

@@ -1,8 +1,10 @@
 module Daily exposing (..)
 
+import Backend
 import Browser.Dom
 import Clipboard
 import Common
+import DailyProgress exposing (..)
 import Date
 import Dict exposing (Dict)
 import Dict.Extra as Dict
@@ -60,6 +62,9 @@ type Msg
     | KeyboardInput String
     | KeyboardBackspace
     | KeyboardClear
+    | BackendMsg Backend.Msg
+    | OnClickedHistoryMonthChange Int
+    | OnClickedHistoryGotoToday
 
 
 type Model
@@ -78,12 +83,8 @@ type alias GameModel =
     , today : Date.Date
     , progress : Progress
     , showProgressPopup : Bool
+    , historyShownDate : Date.Date
     }
-
-
-type GameOverState
-    = First DayProgress
-    | Other DayProgress
 
 
 type Attempt
@@ -96,17 +97,6 @@ type alias EndScore =
     { mistakes : Int
     , attempts : List Attempt
     }
-
-
-type DayProgress
-    = Succeeded
-    | Failed
-    | GiveUp
-
-
-type alias Progress =
-    -- Key is Rata Die format
-    Dict Int DayProgress
 
 
 
@@ -132,6 +122,7 @@ initGame wordChain today progress =
         , today = today
         , progress = progress
         , showProgressPopup = False
+        , historyShownDate = today
         }
     , Process.sleep 100
         |> Task.andThen (\_ -> Browser.Dom.focus idInput)
@@ -160,9 +151,21 @@ gameOver dayProgress game =
                             mDP
                 )
                 game.progress
+
+        score =
+            gameToEndScore game
     in
-    ( GameOver state (gameToEndScore game) { game | progress = newProgress }
-    , updateProgressInStorage game.today dayProgress game.progress
+    ( GameOver state score { game | progress = newProgress }
+    , Cmd.batch
+        [ updateProgressInStorage game.today dayProgress game.progress
+        , Backend.postDaily
+            { state = state
+            , attempts = List.length score.attempts
+            , mistakes = score.mistakes
+            , rata = Date.toRataDie game.today
+            }
+            |> Cmd.map BackendMsg
+        ]
     )
 
 
@@ -321,7 +324,7 @@ update msg model =
 
                 ( wordChain, _ ) =
                     Random.step
-                        (WordChain.multiChainGenerator 10 dictionary)
+                        (WordChain.multiChainGenerator 11 dictionary)
                         seed
 
                 progress =
@@ -391,6 +394,19 @@ update msg model =
 
         ( GameOver success endScore game, OnClickedHideHistory ) ->
             ( GameOver success endScore { game | showProgressPopup = False }, Cmd.none )
+
+        -- TODO: fix redundant copies
+        ( Playing game, OnClickedHistoryMonthChange i ) ->
+            ( Playing { game | historyShownDate = Date.add Date.Months i game.historyShownDate }, Cmd.none )
+
+        ( GameOver success endScore game, OnClickedHistoryMonthChange i ) ->
+            ( GameOver success endScore { game | historyShownDate = Date.add Date.Months i game.historyShownDate }, Cmd.none )
+
+        ( Playing game, OnClickedHistoryGotoToday ) ->
+            ( Playing { game | historyShownDate = game.today }, Cmd.none )
+
+        ( GameOver success endScore game, OnClickedHistoryGotoToday ) ->
+            ( GameOver success endScore { game | historyShownDate = game.today }, Cmd.none )
 
         -- OTHER
         _ ->
@@ -512,37 +528,163 @@ wrongAnswersOf game =
         |> List.filter (\part -> not <| isPinyinValid part game.wordChain)
 
 
+viewHistoryModal : Bool -> GameModel -> Element Msg
+viewHistoryModal onMobile game =
+    let
+        rata =
+            Date.toRataDie game.historyShownDate
+
+        month =
+            Date.monthNumber game.historyShownDate
+
+        monthDays =
+            List.range (rata - 31) (rata + 31)
+                |> List.map Date.fromRataDie
+                |> List.filter
+                    (\d -> Date.monthNumber d == month)
+
+        offset =
+            List.head monthDays
+                |> Maybe.map (\d -> Date.weekdayNumber d - 1)
+                |> Maybe.withDefault 0
+
+        monthDaysOffsetted =
+            List.repeat offset Nothing ++ List.map Just monthDays
+
+        progressOfDateToColor d =
+            game.progress
+                |> Dict.get (Date.toRataDie d)
+                |> Maybe.map (\p -> [ Element.Background.color <| dayProgressToColor p ])
+                |> Maybe.withDefault [ Element.Border.width 1, Element.Border.color UI.accentColorHighlight ]
+
+        monthName =
+            Date.format "MMMM" game.historyShownDate
+
+        yearName =
+            Date.format "y" game.historyShownDate
+
+        squareSize =
+            50
+
+        dateToSquare mD =
+            let
+                ( attrs, label ) =
+                    case mD of
+                        Nothing ->
+                            ( [], "" )
+
+                        Just d ->
+                            ( progressOfDateToColor d
+                                ++ (if Date.diff Date.Days d game.today == 0 then
+                                        [ Element.Border.width 2, Element.Border.color UI.accentColor ]
+
+                                    else
+                                        []
+                                   )
+                            , String.fromInt <| Date.day d
+                            )
+            in
+            el ([ width (px squareSize), height (px squareSize), UI.rounded 3 ] ++ attrs) <|
+                el [ centerX, centerY ] <|
+                    text label
+
+        weekdayHeader =
+            List.range 1 7
+                |> List.map
+                    (\i ->
+                        Date.numberToWeekday i
+                            |> Date.fromWeekDate 2020 1
+                            |> Date.format "E"
+                            |> String.slice 0 3
+                            |> text
+                            |> el [ centerX, centerY ]
+                            |> el [ width (px squareSize), height (px squareSize) ]
+                    )
+                |> row [ spacing 2, Element.Font.color UI.accentColor ]
+
+        recurse : List (Element Msg) -> List (Maybe Date.Date) -> Element Msg
+        recurse acc days =
+            case List.splitAt 7 days of
+                ( [], _ ) ->
+                    column [ spacing 2 ]
+                        (weekdayHeader
+                            :: List.reverse acc
+                        )
+
+                ( week, rest ) ->
+                    let
+                        weekRow =
+                            week
+                                |> List.map dateToSquare
+                                |> row [ spacing 2, Element.Font.color UI.accentColor, Element.Font.size 20 ]
+                    in
+                    recurse (weekRow :: acc) rest
+
+        stats =
+            game.progress
+                |> Dict.toList
+                |> List.foldl
+                    (\( r, dp ) acc ->
+                        case dp of
+                            Succeeded ->
+                                { acc | successes = acc.successes + 1 }
+
+                            Failed ->
+                                { acc | failures = acc.failures + 1 }
+
+                            GiveUp ->
+                                { acc | givenups = acc.givenups + 1 }
+                    )
+                    { successes = 0
+                    , failures = 0
+                    , givenups = 0
+                    }
+
+        total =
+            Dict.size game.progress
+                |> toFloat
+
+        modalFn =
+            if onMobile then
+                MobileUI.modal
+
+            else
+                UI.modal
+    in
+    modalFn
+        OnClickedToggleShowHistory
+        [ el [ alignTop ] <| UI.heading "History"
+        , column [ width fill, spacing 10 ]
+            [ row [ width fill ]
+                [ el [] <| UI.niceText (monthName ++ " " ++ yearName)
+                , el [ alignRight ] <| UI.simpleIconButton (Icons.chevronLeft 20) (OnClickedHistoryMonthChange -1) "Go back one month"
+                , UI.simpleIconButton (Icons.calendar 20) OnClickedHistoryGotoToday "Go to Today"
+                , UI.simpleIconButton (Icons.chevronRight 20) (OnClickedHistoryMonthChange 1) "Go forward one month"
+                ]
+            , el [ centerX, centerY ] <| recurse [] monthDaysOffsetted
+            ]
+        , column [ spacing 10, Element.Font.color UI.accentColor ]
+            [ el [ alignLeft ] <| UI.niceText "Summary:"
+            , text <| "Correct: " ++ (String.fromInt <| round <| stats.successes / total * 100) ++ "%"
+            , text <| "Wrong: " ++ (String.fromInt <| round <| stats.failures / total * 100) ++ "%"
+            , text <| "Given up: " ++ (String.fromInt <| round <| stats.givenups / total * 100) ++ "%"
+            ]
+        ]
+
+
 view : Device -> Model -> Element Msg
 view device model =
     let
-        historyPopup : Date.Date -> Bool -> Progress -> Element Msg
-        historyPopup today show progress =
-            if show then
-                row [ width fill, height fill, Element.Background.color <| rgba 0 0 0 0.1, Element.Events.onClick OnClickedHideHistory ]
-                    [ column [ width (px 300), height fill, alignRight, Element.Background.color UI.accentColorLight, padding 20, spacing 20 ]
-                        [ el [ width fill ] <| UI.heading "Play history:"
-                        , Dict.toList progress
-                            |> List.reverse
-                            |> List.map
-                                (\( rata, dp ) ->
-                                    [ el [ width fill, Element.Background.color <| dayProgressToColor dp, UI.rounded 20, height (px 40) ] <|
-                                        row [ centerX, centerY, spacing 10 ]
-                                            [ text <| Date.format "dd-MMM-yyyy" <| Date.fromRataDie rata
-                                            , text <| dayProgressToEmoji dp
-                                            ]
-                                    ]
-                                )
-                            |> List.concat
-                            |> column
-                                [ width fill, height fill, spacing 10, padding 5, scrollbarY ]
-                        ]
-                    ]
+        onMobile =
+            Utils.isOnMobile device
+
+        historyPopup : GameModel -> Element Msg
+        historyPopup game =
+            if game.showProgressPopup then
+                viewHistoryModal onMobile game
 
             else
                 none
-
-        onMobile =
-            Utils.isOnMobile device
 
         wordList game wordStateFn =
             let
@@ -591,7 +733,7 @@ view device model =
             in
             Common.viewContainer onMobile
                 True
-                { popup = historyPopup game.today game.showProgressPopup game.progress
+                { popup = historyPopup game
                 , topbar = viewTopBar
                 , wordlist = wordList game wordStateFn
                 , bottom =
@@ -620,7 +762,7 @@ view device model =
             in
             Common.viewContainer onMobile
                 False
-                { popup = historyPopup game.today game.showProgressPopup game.progress
+                { popup = historyPopup game
                 , topbar = viewTopBar
                 , wordlist = wordList game wordStateFn
                 , bottom =
@@ -656,8 +798,8 @@ view device model =
 
 viewTopBar =
     row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Daily" ]
-        [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome
-        , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory
+        [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
+        , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory "Show history"
         ]
 
 

@@ -69,11 +69,9 @@
 						storedData = localStorage.getItem(name);
 						if (storedData) {
 							try {
-								console.log(storedData);
 								j = JSON.parse(storedData);
 								app.ports.storageLoaded.send({name:name, json:j});
 							} catch (err){
-								console.log(err);
 								localStorage.setItem(name, JSON.stringify({}));
 							}
 						} else {

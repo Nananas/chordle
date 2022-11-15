@@ -311,3 +311,15 @@ arrowBack size =
     el [ width <| px size, height <| px size ] <|
         Element.html <|
             Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" ] [] ]
+
+
+chevronLeft size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M15.75 19.5L8.25 12l7.5-7.5" ] [] ]
+
+
+chevronRight size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M8.25 4.5l7.5 7.5-7.5 7.5" ] [] ]

@@ -78,12 +78,20 @@ lightGray =
     rgb 0.8 0.8 0.8
 
 
+veryLightGray =
+    rgb 0.9 0.9 0.9
+
+
 floating =
     Element.Border.shadow { offset = ( 0, 2 ), size = 0, blur = 2, color = rgba 0 0 0 0.2 }
 
 
 floatingHigh =
     Element.Border.shadow { offset = ( 0, 4 ), size = 0, blur = 4, color = rgba 0 0 0 0.3 }
+
+
+bottomBorder px =
+    Element.Border.widthEach { bottom = px, left = 0, right = 0, top = 0 }
 
 
 uppercase =
@@ -146,12 +154,13 @@ niceButtonWith attr text onClick mIcon =
         }
 
 
-simpleIconButton icon onClick =
+simpleIconButton icon onClick tooltip =
     Element.Input.button
         [ mouseOver [ Element.Font.color accentColorHighlight ]
         , Element.Font.color accentColor
         , width shrink
         , height <| px 40
+        , htmlAttribute <| Html.Attributes.title tooltip
         ]
         { onPress = Just onClick
         , label =
@@ -160,7 +169,7 @@ simpleIconButton icon onClick =
         }
 
 
-niceIconButton icon onClick =
+niceIconButton icon onClick tooltip =
     Element.Input.button
         [ mouseOver [ Element.Font.color accentColorHighlight ]
         , Element.Font.color white
@@ -169,6 +178,7 @@ niceIconButton icon onClick =
         , height <| px 40
         , width <| px 40
         , Element.Border.rounded 10
+        , htmlAttribute <| Html.Attributes.title tooltip
         ]
         { onPress = Just onClick
         , label =
