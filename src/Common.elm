@@ -147,6 +147,13 @@ viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, m
 
             else
                 20
+
+        ( rowOrCol, rowOrColSpacing ) =
+            if onMobile then
+                ( column, 20 )
+
+            else
+                ( row, 40 )
     in
     column [ width fill, height fill, inFront popup ]
         [ topbar
@@ -170,10 +177,10 @@ viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, m
                                     ]
                                 |> el [ width <| fillPortion 1, alignTop ]
                         )
-                    |> row
+                    |> rowOrCol
                         [ width fill
                         , Element.Border.widthEach { top = 2, bottom = 2, left = 0, right = 0 }
-                        , spacing 40
+                        , spacing rowOrColSpacing
                         ]
         , el [ height shrink, width fill, alignBottom, Element.Border.shadow { offset = ( 0, -8 ), size = 0, blur = 8, color = rgba 0 0 0 0.2 } ] <|
             el [ paddingXY 10 0, width fill, height fill ] <|
