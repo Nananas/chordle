@@ -164,7 +164,13 @@ viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, m
                         wordlist
                             |> List.splitAt 6
                 in
-                [ subwordlist1, subwordlist2 ]
+                (case subwordlist2 of
+                    [] ->
+                        [ subwordlist1 ]
+
+                    _ ->
+                        [ subwordlist1, subwordlist2 ]
+                )
                     |> List.map
                         (\subwordlist ->
                             subwordlist
@@ -202,14 +208,7 @@ viewWordEnglish onMobile word =
         |> List.map
             (\txt ->
                 paragraph
-                    [ Element.Font.size
-                        (if onMobile then
-                            16
-
-                         else
-                            20
-                        )
-                    ]
+                    [ Element.Font.size 16 ]
                     [ text txt ]
             )
         |> column [ spacing 5, alignLeft ]

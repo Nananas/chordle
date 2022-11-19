@@ -713,7 +713,7 @@ view device model =
                                             )
                                    )
                                 |> row [ spacing 10, width <| fillPortion 1 ]
-                            , el [ width <| fillPortion 2 ] <| viewWordEnglish word
+                            , el [ width <| fillPortion 2 ] <| Common.viewWordEnglish onMobile word
                             ]
                     )
     in
@@ -801,13 +801,6 @@ viewTopBar =
         [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
         , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory "Show history"
         ]
-
-
-viewWordEnglish word =
-    word.english
-        |> String.split "|"
-        |> List.map (\txt -> paragraph [ Element.Font.size 16 ] [ text txt ])
-        |> column [ spacing 5, alignLeft ]
 
 
 viewSingleHanzi onMobile wordStateFn showPopupForCharacter wordId id character =
