@@ -988,4 +988,12 @@ clt4 =
 
     -- 11月10号
     , newWord "离开" "li2kai1" "VERB: to leave, to depart"
+
+    -- 17月11号
+    , newWord "果酱" "guo3jiang4" "NOUN: jam (preserved fruit)"
+    , newWord "巧克力酱" "qiao3ke4li4jiang4" "NOUN: chocolate sauce"
+    , newWord "酱油" "jiang4you2" "NOUN: soy sauce"
+    , newWord "微" "wei1" "NOUN: one millionth part of, micro-"
+    , newWord "政府" "zheng4fu3" "NOUN: government"
+    , newWord "老百姓" "lao3bai3xing4" "NOUN: civilians, common people"
     ]
