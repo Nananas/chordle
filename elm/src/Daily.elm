@@ -130,8 +130,8 @@ initGame wordChain today progress =
     )
 
 
-gameOver : DayProgress -> GameModel -> ( Model, Cmd Msg )
-gameOver dayProgress game =
+gameOver : Backend.Uuid -> DayProgress -> GameModel -> ( Model, Cmd Msg )
+gameOver uuid dayProgress game =
     let
         state =
             if Dict.member (Date.toRataDie game.today) game.progress then
@@ -159,6 +159,7 @@ gameOver dayProgress game =
     , Cmd.batch
         [ updateProgressInStorage game.today dayProgress game.progress
         , Backend.postDaily
+            uuid
             { state = state
             , attempts = List.length score.attempts
             , mistakes = score.mistakes
@@ -308,7 +309,8 @@ sortWords words =
         |> List.map (\( w, i, _ ) -> ( w, i ))
 
 
-update msg model =
+update : Backend.Uuid -> Msg -> Model -> ( Model, Cmd Msg )
+update uuid msg model =
     case ( model, msg ) of
         ( LoadingSeed, OnSeedDateLoaded ( seedInt, today ) ) ->
             let
@@ -352,10 +354,10 @@ update msg model =
                         |> String.fromCodePoints
             in
             processInput txt game
-                |> processRoundFinished
+                |> processRoundFinished uuid
 
         ( Playing game, OnGiveUpClicked ) ->
-            gameOver GiveUp game
+            gameOver uuid GiveUp game
 
         ( Playing game, OnMouseEnterCharacter id ) ->
             ( Playing { game | showPopupForCharacter = Just id }, Cmd.none )
@@ -427,11 +429,11 @@ processInput txt game =
             { game | currentInput = "" }
 
 
-processRoundFinished : GameModel -> ( Model, Cmd Msg )
-processRoundFinished game =
+processRoundFinished : Backend.Uuid -> GameModel -> ( Model, Cmd Msg )
+processRoundFinished uuid game =
     if List.length (allWrongAnswers game) > 5 then
         -- Too many wrong answers
-        gameOver Failed game
+        gameOver uuid Failed game
 
     else
         let
@@ -443,7 +445,7 @@ processRoundFinished game =
         in
         if finished then
             -- word round finished, we found all correctly
-            gameOver Succeeded game
+            gameOver uuid Succeeded game
 
         else
             ( Playing game, Cmd.none )
@@ -913,4 +915,4 @@ viewGameOverShare endScore today state =
 
 
 subscriptions =
-    Storage.storageLoaded OnStorageLoaded
+    Sub.none

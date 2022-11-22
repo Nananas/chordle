@@ -13,7 +13,8 @@ pub fn insert_event(
   db: pgo.Connection,
   page_event: PageEvent,
 ) -> Result(Nil, String) {
-  let insert_sql = "insert into page_events(page, event) values ($1, $2);"
+  let insert_sql =
+    "insert into page_events(page, uuid, event) values ($1, $2, $3);"
   let event_json_str =
     api.event_to_json(page_event.event)
     |> json.to_string
@@ -22,7 +23,11 @@ pub fn insert_event(
     pgo.execute(
       insert_sql,
       db,
-      [pgo.text(page_event.page), pgo.text(event_json_str)],
+      [
+        pgo.text(page_event.page),
+        pgo.text(page_event.uuid),
+        pgo.text(event_json_str),
+      ],
       dynamic.dynamic,
     )
     |> map_error_string("Database error")

@@ -34,6 +34,7 @@ import Tones exposing (..)
 import Training
 import UI
 import Utils exposing (..)
+import Uuid.Barebones exposing (uuidStringGenerator)
 import Words exposing (..)
 
 
@@ -53,10 +54,12 @@ main =
 type Msg
     = OnGetViewport Browser.Dom.Viewport
     | OnResizeViewport Int Int
+    | UUIDGenerated String
     | TrainingMsg Training.Msg
     | DailyMsg Daily.Msg
     | ClickedChooseDaily
     | ClickedChooseTraining
+    | OnStorageLoaded Storage.Storage
 
 
 
@@ -66,11 +69,12 @@ type Msg
 type alias Model =
     { device : Device
     , state : State
+    , uuid : Maybe String
     }
 
 
 type State
-    = LoadingDeviceType
+    = Loading
     | ChooseGameType
     | Training Training.Model
     | Daily Daily.Model
@@ -82,9 +86,10 @@ type State
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { state = LoadingDeviceType, device = desktop }
-    , Browser.Dom.getViewport
-        |> Task.perform OnGetViewport
+    ( { state = Loading, device = desktop, uuid = Nothing }
+    , Cmd.batch
+        [ Storage.loadStorage "id"
+        ]
     )
 
 
@@ -95,6 +100,47 @@ init _ =
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case ( msg, model.state ) of
+        ( OnStorageLoaded { name, json }, Loading ) ->
+            let
+                decoder =
+                    Json.Decode.field "uuid" Json.Decode.string
+
+                decoded =
+                    Json.Decode.decodeValue decoder json
+            in
+            case decoded of
+                Ok uuid ->
+                    ( { model | uuid = Just uuid }
+                    , Browser.Dom.getViewport
+                        |> Task.perform OnGetViewport
+                    )
+
+                Err err ->
+                    ( model, Random.generate UUIDGenerated uuidStringGenerator )
+
+        -- Forward storage subscriptions
+        -- doing this in subscriptions does not seem to work well
+        ( OnStorageLoaded storage, Training _ ) ->
+            update (TrainingMsg <| Training.OnStorageLoaded storage) model
+
+        ( OnStorageLoaded storage, Daily _ ) ->
+            update (DailyMsg <| Daily.OnStorageLoaded storage) model
+
+        ( OnStorageLoaded storage, _ ) ->
+            ( model, Cmd.none )
+
+        ( UUIDGenerated uuid, _ ) ->
+            ( { model
+                | uuid =
+                    Just uuid
+              }
+            , Cmd.batch
+                [ Browser.Dom.getViewport
+                    |> Task.perform OnGetViewport
+                , Storage.setStorage { name = "id", json = Json.Encode.object [ ( "uuid", Json.Encode.string uuid ) ] }
+                ]
+            )
+
         ( OnGetViewport { viewport }, _ ) ->
             ( { model
                 | device = classifyViewport viewport
@@ -120,7 +166,7 @@ update msg model =
             ( { model | state = ChooseGameType }, Cmd.none )
 
         ( TrainingMsg trainingMsg, Training trainingModel ) ->
-            Training.update trainingMsg trainingModel
+            Training.update model.uuid trainingMsg trainingModel
                 |> liftBoth Training TrainingMsg
                 |> setStateIn model
 
@@ -131,7 +177,7 @@ update msg model =
             ( { model | state = ChooseGameType }, Cmd.none )
 
         ( DailyMsg dailyMsg, Daily dailyModel ) ->
-            Daily.update dailyMsg dailyModel
+            Daily.update model.uuid dailyMsg dailyModel
                 |> liftBoth Daily DailyMsg
                 |> setStateIn model
 
@@ -162,6 +208,7 @@ subscriptions model =
 
             _ ->
                 Sub.none
+        , Storage.storageLoaded OnStorageLoaded
         ]
 
 
@@ -173,7 +220,7 @@ view : Model -> Html.Html Msg
 view model =
     layoutWith { options = [ focusStyle { backgroundColor = Nothing, borderColor = Nothing, shadow = Nothing } ] } [ width fill, height fill ] <|
         case model.state of
-            LoadingDeviceType ->
+            Loading ->
                 UI.spinner
 
             ChooseGameType ->

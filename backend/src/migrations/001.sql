@@ -4,7 +4,6 @@ CREATE TABLE page_events (
     event TEXT NOT NULL
 );
 
-
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     username TEXT NOT NULL,

@@ -1,5 +1,6 @@
 module Training exposing (..)
 
+import Backend
 import Browser
 import Browser.Dom
 import Browser.Events
@@ -38,7 +39,7 @@ import Words exposing (..)
 
 
 type Msg
-    = StorageLoaded Storage.Storage
+    = OnStorageLoaded Storage.Storage
     | NewWordChain WordChain
     | InputHanzi String
     | UserPressedEnter
@@ -66,6 +67,8 @@ type Msg
     | KeyboardClear
       --
     | OnClickedHome
+      --
+    | BackendMsg Backend.Msg
 
 
 type Model
@@ -181,10 +184,10 @@ init =
 --
 
 
-update : Msg -> Model -> ( Model, Cmd Msg )
-update msg model =
+update : Backend.Uuid -> Msg -> Model -> ( Model, Cmd Msg )
+update uuid msg model =
     case ( model, msg ) of
-        ( LoadingGameStatsFromStorage, StorageLoaded storage ) ->
+        ( LoadingGameStatsFromStorage, OnStorageLoaded storage ) ->
             let
                 gameStats =
                     storage.json
@@ -197,7 +200,7 @@ update msg model =
                 Ok stats ->
                     ( LoadingWordsFoundFromStorage stats, Storage.loadStorage "words-found" )
 
-        ( LoadingWordsFoundFromStorage gameStats, StorageLoaded storage ) ->
+        ( LoadingWordsFoundFromStorage gameStats, OnStorageLoaded storage ) ->
             let
                 words : List String
                 words =
@@ -222,8 +225,9 @@ update msg model =
                 --allWords Dict.empty |> List.drop 1
                 --|> Debug.log "Debug stuff"
             in
-            if List.length wordsFound == List.length (allWords Dict.empty) then
-                ( GameFinished
+            if List.length wordsFound >= List.length (allWords Dict.empty) then
+                gameFinished
+                    uuid
                     { wordsFound = wordsFound
                     , wordChain = []
                     , answers = []
@@ -242,8 +246,6 @@ update msg model =
                     , keyboardKeyFeedback = Nothing
                     , gameStats = gameStats
                     }
-                , Cmd.none
-                )
 
             else
                 ( Initializing wordsFound gameStats
@@ -355,8 +357,8 @@ update msg model =
             ( Ready newModel, cmd )
 
         ( Ready game, ToNextWord ) ->
-            if List.length game.wordsFound == List.length (allWords game.dictsActive) then
-                ( GameFinished game, Cmd.none )
+            if List.length game.wordsFound >= List.length (allWords game.dictsActive) then
+                gameFinished uuid game
 
             else
                 let
@@ -523,6 +525,11 @@ restartGame model =
     )
 
 
+gameFinished : Backend.Uuid -> GameModel -> ( Model, Cmd Msg )
+gameFinished uuid model =
+    ( GameFinished model, Backend.postTrainingFinished uuid model |> Cmd.map BackendMsg )
+
+
 
 -- SUBSCRIPTIONS
 
@@ -530,14 +537,12 @@ restartGame model =
 subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
-        [ Storage.storageLoaded StorageLoaded
-        , case model of
+        [ case model of
             Ready _ ->
                 Time.every 1000 OnTick
 
             _ ->
                 Sub.none
-        , Notifications.permissionChanged OnNotificationPermissionChanged
         ]
 
 

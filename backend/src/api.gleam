@@ -1,14 +1,20 @@
+import gleam/io
 import gleam/dynamic
 import gleam/json
 import gleam/result
 import utils
 
 pub type PageEvent {
-  PageEvent(page: String, event: Event)
+  PageEvent(page: String, uuid: String, event: Event)
 }
 
 pub type Event {
-  Event(
+  Daily(event: DailyEvent)
+  Training(event: TrainingEvent)
+}
+
+pub type DailyEvent {
+  DailyEvent(
     progress: String,
     result: String,
     attempts: Int,
@@ -17,8 +23,13 @@ pub type Event {
   )
 }
 
-type CreateUserRequest {
-  CreateUserRequest(username: String, password: String, email: String)
+pub type TrainingEvent {
+  TrainingEvent(
+    dicts_active: List(String),
+    attempts: Int,
+    correct: Int,
+    retries: Int,
+  )
 }
 
 // DECODERS
@@ -26,24 +37,41 @@ type CreateUserRequest {
 pub fn page_event_to_json(page_event: PageEvent) -> json.Json {
   json.object([
     #("page", json.string(page_event.page)),
+    #("uuid", json.string(page_event.uuid)),
     #("event", event_to_json(page_event.event)),
   ])
 }
 
 pub fn event_to_json(event: Event) -> json.Json {
+  case event {
+    Daily(e) -> daily_event_to_json(e)
+    Training(e) -> training_event_to_json(e)
+  }
+}
+
+pub fn daily_event_to_json(daily_event: DailyEvent) -> json.Json {
   json.object([
-    #("progress", json.string(event.progress)),
-    #("result", json.string(event.result)),
-    #("attempts", json.int(event.attempts)),
-    #("mistakes", json.int(event.mistakes)),
-    #("rata", json.int(event.rata)),
+    #("progress", json.string(daily_event.progress)),
+    #("result", json.string(daily_event.result)),
+    #("attempts", json.int(daily_event.attempts)),
+    #("mistakes", json.int(daily_event.mistakes)),
+    #("rata", json.int(daily_event.rata)),
+  ])
+}
+
+pub fn training_event_to_json(training_event: TrainingEvent) -> json.Json {
+  json.object([
+    #("dicts-active", json.array(training_event.dicts_active, json.string)),
+    #("attempts", json.int(training_event.attempts)),
+    #("correct", json.int(training_event.correct)),
+    #("retries", json.int(training_event.retries)),
   ])
 }
 
 pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
-  let event_decoder =
+  let daily_event_decoder =
     dynamic.decode5(
-      Event,
+      fn(a, b, c, d, e) { Daily(event: DailyEvent(a, b, c, d, e)) },
       dynamic.field("progress", of: dynamic.string),
       dynamic.field("result", of: dynamic.string),
       dynamic.field("attempts", of: dynamic.int),
@@ -51,24 +79,23 @@ pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
       dynamic.field("rata", of: dynamic.int),
     )
 
-  let page_event_decoder =
-    dynamic.decode2(
-      PageEvent,
-      dynamic.field("page", of: dynamic.string),
-      dynamic.field("event", of: event_decoder),
+  let training_event_decoder =
+    dynamic.decode4(
+      fn(a, b, c, d) { Training(event: TrainingEvent(a, b, c, d)) },
+      dynamic.field("dicts-active", of: dynamic.list(dynamic.string)),
+      dynamic.field("correct", of: dynamic.int),
+      dynamic.field("attempts", of: dynamic.int),
+      dynamic.field("retries", of: dynamic.int),
     )
-  json.decode(from: str, using: page_event_decoder)
-  |> utils.map_error_string("parse error")
-}
 
-fn decode_createuser(str: String) -> Result(CreateUserRequest, String) {
-  let decoder =
-    dynamic.decode3(
-      CreateUserRequest,
-      dynamic.field("username", of: dynamic.string),
-      dynamic.field("password", of: dynamic.string),
-      dynamic.field("email", of: dynamic.string),
-    )
-  json.decode(from: str, using: decoder)
-  |> utils.map_error_string("auth parse error")
+  let event_decoder = dynamic.any([daily_event_decoder, training_event_decoder])
+
+  dynamic.decode3(
+    PageEvent,
+    dynamic.field("page", of: dynamic.string),
+    dynamic.field("uuid", of: dynamic.string),
+    dynamic.field("event", of: event_decoder),
+  )
+  |> json.decode(from: str)
+  |> utils.map_error_string("parse error")
 }
