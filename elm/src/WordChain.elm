@@ -10,24 +10,48 @@ import Random
 import Random.List
 import Tones
 import UI
+import Utils
 import Words exposing (..)
 
 
 type alias WordChain =
-    List Word
+    List ( Word, Int )
 
 
 isPinyinValid : PinyinPart -> WordChain -> Bool
 isPinyinValid pinyinPart wordChain =
     wordChain
         |> List.find
-            (\word ->
+            (\( word, _ ) ->
                 List.find (\character -> pinyinPartsSimilarity character.pinyinPart pinyinPart == CompletelySimilar) word.characters
                     |> Maybe.map (\_ -> True)
                     |> Maybe.withDefault False
             )
         |> Maybe.map (\_ -> True)
         |> Maybe.withDefault False
+
+
+isPinyinSimilar : PinyinPart -> WordChain -> Bool
+isPinyinSimilar pinyinPart wordChain =
+    wordChain
+        |> List.find
+            (\( word, _ ) ->
+                List.find (\character -> pinyinPartsSimilarity character.pinyinPart pinyinPart == PinyinSimilar) word.characters
+                    |> Maybe.map (\_ -> True)
+                    |> Maybe.withDefault False
+            )
+        |> Maybe.map (\_ -> True)
+        |> Maybe.withDefault False
+
+
+wrongAnswersOf : WordChain -> List PinyinPart -> List PinyinPart
+wrongAnswersOf wordChain parts =
+    parts
+        |> List.filter (\part -> not <| isPinyinValid part wordChain)
+
+
+
+-- RANDOM
 
 
 singleChainGenerator : ( Int, Int ) -> List Word -> Random.Generator WordChain
@@ -41,18 +65,6 @@ singleChainGenerator ( from, to ) dictionary =
         dictionaryWithoutWord : List Word -> Word -> List Word
         dictionaryWithoutWord dict word =
             List.remove word dict
-
-        --oneSimilarWordGenerator : List Word -> Word -> Random.Generator Word
-        --oneSimilarWordGenerator fromList similarTo =
-        --    similarWords similarTo fromList
-        --        |> Random.List.choose
-        --        |> Random.map (Tuple.first >> Maybe.withDefault emptyWord)
-        go wordList similarWord acc count =
-            if count <= 0 then
-                acc
-
-            else
-                similarWords similarWord wordList
     in
     Random.map2
         (\startWord wordCount ->
@@ -67,7 +79,12 @@ singleChainGenerator ( from, to ) dictionary =
         |> Random.andThen
             (\( wordList, startWord, wordCount ) ->
                 Random.List.choices wordCount wordList
-                    |> Random.map (\( selected, _ ) -> startWord :: selected)
+                    |> Random.map
+                        (\( selected, _ ) ->
+                            startWord
+                                :: selected
+                                |> List.map (\w -> ( w, 0 ))
+                        )
             )
 
 
@@ -132,6 +149,64 @@ multiChainGenerator maximumAmount dictionary =
     one dictionary
         |> Random.andThen (recurse 20)
         |> Random.map Tuple.first
+        |> Random.map offsetWords
+        |> Random.map sortWords
+
+
+offsetWords : List Word -> List ( Word, Int, Hanzi )
+offsetWords words =
+    let
+        hasOffsetWith : Word -> ( Word, Int, Hanzi ) -> Maybe ( Word, Int, Hanzi )
+        hasOffsetWith word ( other, otherIndex, _ ) =
+            word.characters
+                |> List.indexedFoldl
+                    (\charIndex { hanzi } mResult ->
+                        case mResult of
+                            Nothing ->
+                                Utils.indexedFind (\oChar -> oChar.hanzi == hanzi) other.characters
+                                    |> Maybe.map (\( i, e ) -> ( word, i + otherIndex - charIndex, e.hanzi ))
+
+                            _ ->
+                                mResult
+                    )
+                    Nothing
+
+        shiftedWords =
+            words
+                |> List.foldr
+                    (\word acc ->
+                        case acc of
+                            [] ->
+                                [ ( word, 0, List.map .hanzi word.characters |> String.concat ) ]
+
+                            _ ->
+                                (List.findMap (hasOffsetWith word) acc
+                                    |> Maybe.withDefault ( word, List.length acc * 10, List.map .hanzi word.characters |> String.concat )
+                                )
+                                    :: acc
+                    )
+                    []
+
+        minimumIndex =
+            shiftedWords
+                |> List.map (\( _, i, _ ) -> i)
+                |> List.minimum
+                |> Maybe.withDefault 0
+    in
+    shiftedWords
+        |> List.map (\( w, i, h ) -> ( w, i - minimumIndex, h ))
+
+
+sortWords : List ( Word, Int, Hanzi ) -> List ( Word, Int )
+sortWords words =
+    let
+        comp : ( Word, Int, Hanzi ) -> ( Word, Int, Hanzi ) -> Order
+        comp ( w1, i1, h1 ) ( w2, i2, h2 ) =
+            compare h1 h2
+    in
+    words
+        |> List.sortWith comp
+        |> List.map (\( w, i, _ ) -> ( w, i ))
 
 
 

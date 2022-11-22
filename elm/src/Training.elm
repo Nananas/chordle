@@ -87,6 +87,7 @@ type alias GameModel =
     , wordChain : WordChain
     , answers : List PinyinPart
     , currentInput : String
+    , errorMsg : Maybe String
     , gameState : GameState
 
     --
@@ -232,6 +233,7 @@ update uuid msg model =
                     , wordChain = []
                     , answers = []
                     , currentInput = ""
+                    , errorMsg = Nothing
                     , gameState = NotDone
                     , showPopupForCharacter = Nothing
                     , showTodoUpdate = Nothing
@@ -258,6 +260,7 @@ update uuid msg model =
                 , wordChain = wordChain
                 , answers = []
                 , currentInput = ""
+                , errorMsg = Nothing
                 , gameState = NotDone
                 , showPopupForCharacter = Nothing
                 , showTodoUpdate = Nothing
@@ -316,6 +319,7 @@ update uuid msg model =
                     | wordChain = wordChain
                     , answers = []
                     , currentInput = ""
+                    , errorMsg = Nothing
                     , gameState = NotDone
                     , showPopupForCharacter = Nothing
                     , showTodoUpdate = Nothing
@@ -327,37 +331,53 @@ update uuid msg model =
 
         ( Ready game, InputHanzi txt ) ->
             ( Ready
-                { game | currentInput = txt }
+                { game | currentInput = txt, errorMsg = Nothing }
             , Cmd.none
             )
 
         ( Ready game, KeyboardInput char ) ->
-            ( Ready { game | currentInput = game.currentInput ++ char }, Cmd.none )
+            ( Ready { game | currentInput = game.currentInput ++ char, errorMsg = Nothing }, Cmd.none )
 
         ( Ready game, KeyboardBackspace ) ->
-            ( Ready { game | currentInput = String.dropRight 1 game.currentInput }, Cmd.none )
+            ( Ready { game | currentInput = String.dropRight 1 game.currentInput, errorMsg = Nothing }, Cmd.none )
 
         ( Ready game, KeyboardClear ) ->
-            ( Ready { game | currentInput = "" }, Cmd.none )
+            ( Ready { game | currentInput = "", errorMsg = Nothing }, Cmd.none )
 
         ( Ready game, OnToggleScreenKeyboard ) ->
             ( Ready { game | useScreenKeyboardOnMobile = not game.useScreenKeyboardOnMobile }, Cmd.none )
 
         ( Ready game, UserPressedEnter ) ->
-            let
-                txt =
-                    String.toCodePoints game.currentInput
-                        |> List.filter (\code -> code <= 126)
-                        |> String.fromCodePoints
+            if game.currentInput == "" then
+                ( Ready game, Cmd.none )
 
-                ( newModel, cmd ) =
-                    processInput txt game
-                        |> processRoundFinished
-            in
-            ( Ready newModel, cmd )
+            else
+                let
+                    txt =
+                        String.toCodePoints game.currentInput
+                            |> List.filter (\code -> code <= 126)
+                            |> String.fromCodePoints
+
+                    ( newModel, cmd ) =
+                        processInput txt game
+                            |> processRoundFinished
+                in
+                ( Ready newModel, cmd )
 
         ( Ready game, ToNextWord ) ->
-            if List.length game.wordsFound >= List.length (allWords game.dictsActive) then
+            let
+                a =
+                    game.wordsFound
+                        |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
+                        |> Set.fromList
+
+                b =
+                    allWords game.dictsActive
+                        |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
+                        |> Set.fromList
+            in
+            --if List.length game.wordsFound >= List.length (allWords game.dictsActive) then
+            if (Set.intersect a b |> Set.size) == Set.size b then
                 gameFinished uuid game
 
             else
@@ -593,7 +613,7 @@ viewGame device game =
         , wordlist =
             game.wordChain
                 |> List.indexedMap
-                    (\wordId word ->
+                    (\wordId ( word, _ ) ->
                         row [ width fill, spacing 20, padding 5 ]
                             [ el [ width <| fillPortion 1 ] <| viewWordAnswers onMobile game wordId word
                             , el [ width <| fillPortion 2 ] <| Common.viewWordEnglish onMobile word
@@ -609,7 +629,7 @@ viewGame device game =
 
                 TooManyWrongAnswers ->
                     el [ height (px 50), centerX ] <| UI.niceText "Better next time..."
-            , Common.viewWrongAnwers onMobile (wrongAnswersOf game)
+            , Common.viewWrongAnwers onMobile (WordChain.wrongAnswersOf game.wordChain game.answers)
             , case game.gameState of
                 NotDone ->
                     el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
@@ -810,10 +830,10 @@ viewSingleHanzi : Bool -> GameModel -> Int -> Int -> Character -> Element Msg
 viewSingleHanzi onMobile game wordId id character =
     let
         known =
-            isCharacterKnown game character
+            isCharacterKnown character game.answers
 
         similar =
-            isCharacterSimilar game character
+            isCharacterSimilar character game.answers
 
         state =
             case game.gameState of
@@ -843,161 +863,6 @@ viewSingleHanzi onMobile game wordId id character =
 
 
 
---let
---    popup =
---        case game.showPopupForCharacter of
---            Nothing ->
---                none
---            Just ( wid, i ) ->
---                if wid == wordId && id == i then
---                    column [ centerX ]
---                        [ el [ height <| px 10 ] none
---                        , el
---                            [ Background.color UI.white
---                            , padding 10
---                            , centerX
---                            , Font.color UI.gray
---                            , UI.floatingHigh
---                            , Border.rounded 10
---                            , Font.size 16
---                            , Font.regular
---                            ]
---                          <|
---                            text <|
---                                formatPinyin character.pinyinPart
---                        ]
---                else
---                    none
---    known =
---        isCharacterKnown game character
---    similar =
---        isCharacterSimilar game character
---in
---el
---    ([ UI.floating
---     , UI.rounded 5
---     , paddingXY 20 0
---     --, width <| maximum 50 shrink
---     , width <|
---        if known then
---            px 50
---        else if similar then
---            shrink
---        else
---            px 50
---     , height <| px 50
---     , Font.color <|
---        case game.gameState of
---            NotDone ->
---                UI.black
---            _ ->
---                toneToColor character.pinyinPart.tone
---     , Font.medium
---     , Background.color <|
---        case game.gameState of
---            NotDone ->
---                if known then
---                    rgb255 152 226 172
---                else if similar then
---                    rgb255 240 230 110
---                else
---                    rgb 1 1 1
---            _ ->
---                -- TODO: tones
---                rgb 1 1 1
---     , Border.color <|
---        case game.gameState of
---            NotDone ->
---                rgba 0 0 0 0
---            _ ->
---                if known then
---                    rgb255 152 226 172
---                else
---                    rgb255 230 125 125
---     , Border.width 2
---     , below popup
---     ]
---        ++ (case game.gameState of
---                NotDone ->
---                    []
---                _ ->
---                    [ Element.Events.onMouseEnter (OnMouseEnterCharacter ( wordId, id ))
---                    , Element.Events.onMouseLeave OnMouseLeaveCharacter
---                    ]
---           )
---    )
---<|
---    el [ centerX, centerY, Font.size 20 ] <|
---        text <|
---            case game.gameState of
---                NotDone ->
---                    if known then
---                        character.hanzi
---                    else if similar then
---                        character.pinyinPart.pinyin
---                    else
---                        ""
---                _ ->
---                    character.hanzi
-
-
-viewWrongAnwers : Bool -> List PinyinPart -> Element Msg
-viewWrongAnwers onMobile wrongAnswers =
-    let
-        size =
-            if onMobile then
-                40
-
-            else
-                50
-
-        fontsize =
-            if onMobile then
-                14
-
-            else
-                20
-    in
-    (List.map (\w -> Just w) wrongAnswers ++ List.repeat (6 - List.length wrongAnswers) Nothing)
-        |> List.map
-            (\mPart ->
-                el
-                    [ UI.floating
-                    , UI.rounded 5
-                    , height (px size)
-                    , width <|
-                        minimum size shrink
-                    , paddingXY 10 0
-                    , Background.color <|
-                        case mPart of
-                            Just _ ->
-                                UI.errorColorLight
-
-                            _ ->
-                                rgb255 226 226 226
-                    , Border.color <|
-                        case mPart of
-                            Just _ ->
-                                UI.errorColor
-
-                            _ ->
-                                rgb255 226 226 226
-                    , Border.width 2
-                    ]
-                <|
-                    el [ centerX, centerY, Font.size fontsize ] <|
-                        case mPart of
-                            Just part ->
-                                text (formatPinyin part)
-
-                            Nothing ->
-                                text "     "
-            )
-        |> row [ centerX, height (px size), centerY, spacing 5 ]
-        |> el [ width fill ]
-
-
-
 --
 
 
@@ -1021,35 +886,15 @@ processInput : String -> GameModel -> GameModel
 processInput txt game =
     case txt |> splitStringIntoPinyin of
         Ok pinyinParts ->
-            { game | answers = pinyinParts ++ game.answers |> List.unique, currentInput = "" }
+            { game
+                | answers = pinyinParts ++ game.answers |> List.unique
+                , currentInput = ""
+                , errorMsg = Nothing
+            }
 
         Err err ->
             -- TODO: show error message
-            { game | currentInput = "" }
-
-
-isWordFullyKnown : GameModel -> Word -> Bool
-isWordFullyKnown game word =
-    word.characters
-        |> List.filter (\character -> not <| List.member character.pinyinPart game.answers)
-        |> List.length
-        |> (==) 0
-
-
-isCharacterKnown : GameModel -> Character -> Bool
-isCharacterKnown game character =
-    List.member character.pinyinPart game.answers
-
-
-isCharacterSimilar : GameModel -> Character -> Bool
-isCharacterSimilar game character =
-    List.any (\part -> part.pinyin == character.pinyinPart.pinyin) game.answers
-
-
-wrongAnswersOf : GameModel -> List PinyinPart
-wrongAnswersOf game =
-    game.answers
-        |> List.filter (\part -> not <| WordChain.isPinyinValid part game.wordChain)
+            { game | currentInput = "", errorMsg = Just err }
 
 
 processRoundFinished : GameModel -> ( GameModel, Cmd Msg )
@@ -1065,7 +910,7 @@ processRoundFinished game =
             )
     in
     withFocusNextBtn <|
-        if List.length (wrongAnswersOf game) > 5 then
+        if List.length (WordChain.wrongAnswersOf game.wordChain game.answers) > 5 then
             -- Too many wrong answers
             let
                 newGameStats =
@@ -1078,6 +923,7 @@ processRoundFinished game =
                 , showTodoUpdate = Just (List.length game.wordChain)
                 , showTodoUpdateTimer = 2
                 , gameStats = newGameStats
+                , errorMsg = Nothing
               }
             , Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
             )
@@ -1087,12 +933,12 @@ processRoundFinished game =
                 finished =
                     game.wordChain
                         |> List.foldl
-                            (\word acc -> isWordFullyKnown game word && acc)
+                            (\( word, _ ) acc -> isWordFullyKnown word game.answers && acc)
                             True
 
                 wordsFound =
                     List.foldl
-                        (\w acc ->
+                        (\( w, _ ) acc ->
                             if List.member w acc then
                                 acc
 
@@ -1116,6 +962,7 @@ processRoundFinished game =
                     , showTodoUpdateTimer = 2
                     , wordsFound = wordsFound
                     , gameStats = newGameStats
+                    , errorMsg = Nothing
                   }
                 , Cmd.batch
                     [ Storage.setStorage

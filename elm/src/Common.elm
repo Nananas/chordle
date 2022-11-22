@@ -16,8 +16,8 @@ idInput =
     "text-input"
 
 
-viewInput : Bool -> { r | currentInput : String } -> { msgUserPressedEnter : msg, msgInputHanzi : String -> msg } -> Element msg
-viewInput onMobile { currentInput } { msgUserPressedEnter, msgInputHanzi } =
+viewInput : Bool -> { r | currentInput : String, errorMsg : Maybe String } -> { msgUserPressedEnter : msg, msgInputHanzi : String -> msg } -> Element msg
+viewInput onMobile { currentInput, errorMsg } { msgUserPressedEnter, msgInputHanzi } =
     el [ width fill, padding 10, height (px 50) ] <|
         row
             [ width fill
@@ -30,17 +30,32 @@ viewInput onMobile { currentInput } { msgUserPressedEnter, msgInputHanzi } =
             , spacing 20
             ]
             [ if onMobile then
-                if currentInput == "" then
-                    el [ Element.Font.size 14, Element.Font.color UI.gray, width fill, height (px 40) ] <|
-                        paragraph [ width fill, centerY ]
-                            [ text
-                                "Use the keyboard to write pinyin with tones (e.g. hao3 for 好), then press 'OK'"
-                            ]
+                let
+                    inputEl fsize color txt =
+                        el [ Element.Font.size fsize, Element.Font.color color, width fill, height (px 40) ] <|
+                            paragraph [ width fill, centerY ]
+                                [ text
+                                    txt
+                                ]
+                in
+                case ( currentInput, errorMsg ) of
+                    ( "", Just err ) ->
+                        inputEl 14 UI.errorColor err
 
-                else
-                    text <| currentInput
+                    ( "", Nothing ) ->
+                        inputEl 14 UI.gray "Use the keyboard to write pinyin with tones (e.g. hao3 for 好), then press 'OK'"
+
+                    _ ->
+                        inputEl 14 UI.black currentInput
 
               else
+                let
+                    inputPlaceholder fsize color txt =
+                        Just <|
+                            Element.Input.placeholder [ Element.Font.size fsize, Element.Font.color color ] <|
+                                text
+                                    txt
+                in
                 Element.Input.text
                     [ UI.onEnter msgUserPressedEnter
                     , htmlAttribute <| Html.Attributes.id idInput
@@ -49,16 +64,21 @@ viewInput onMobile { currentInput } { msgUserPressedEnter, msgInputHanzi } =
                     { onChange = msgInputHanzi
                     , text = currentInput
                     , placeholder =
-                        Just <|
-                            Element.Input.placeholder [ Element.Font.size 14 ] <|
-                                text <|
-                                    "Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
+                        case ( currentInput, errorMsg ) of
+                            ( "", Just err ) ->
+                                inputPlaceholder 14 UI.errorColor err
+
+                            _ ->
+                                inputPlaceholder 14
+                                    UI.gray
+                                    ("Write pinyin with tones here (e.g. hao3 for 好), then press 'OK'"
                                         ++ (if not onMobile then
                                                 " or the Enter key"
 
                                             else
                                                 ""
                                            )
+                                    )
                     , label = Element.Input.labelHidden ""
                     }
             , Element.Input.button

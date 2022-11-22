@@ -77,6 +77,7 @@ type Model
 type alias GameModel =
     { wordChain : List ( Word, Int )
     , currentInput : String
+    , errorMsg : Maybe String
     , answers : List PinyinPart
     , showPopupForCharacter : Maybe ( Int, Int )
     , attempts : List Attempt
@@ -116,6 +117,7 @@ initGame wordChain today progress =
     ( Playing
         { wordChain = wordChain
         , currentInput = ""
+        , errorMsg = Nothing
         , answers = []
         , showPopupForCharacter = Nothing
         , attempts = []
@@ -253,62 +255,6 @@ updateProgressInStorage today dayProgress progress =
         }
 
 
-offsetWords : List Word -> List ( Word, Int, Hanzi )
-offsetWords words =
-    let
-        hasOffsetWith : Word -> ( Word, Int, Hanzi ) -> Maybe ( Word, Int, Hanzi )
-        hasOffsetWith word ( other, otherIndex, _ ) =
-            word.characters
-                |> List.indexedFoldl
-                    (\charIndex { hanzi } mResult ->
-                        case mResult of
-                            Nothing ->
-                                Utils.indexedFind (\oChar -> oChar.hanzi == hanzi) other.characters
-                                    |> Maybe.map (\( i, e ) -> ( word, i + otherIndex - charIndex, e.hanzi ))
-
-                            _ ->
-                                mResult
-                    )
-                    Nothing
-
-        shiftedWords =
-            words
-                |> List.foldr
-                    (\word acc ->
-                        case acc of
-                            [] ->
-                                [ ( word, 0, List.map .hanzi word.characters |> String.concat ) ]
-
-                            _ ->
-                                (List.findMap (hasOffsetWith word) acc
-                                    |> Maybe.withDefault ( word, List.length acc * 10, List.map .hanzi word.characters |> String.concat )
-                                )
-                                    :: acc
-                    )
-                    []
-
-        minimumIndex =
-            shiftedWords
-                |> List.map (\( _, i, _ ) -> i)
-                |> List.minimum
-                |> Maybe.withDefault 0
-    in
-    shiftedWords
-        |> List.map (\( w, i, h ) -> ( w, i - minimumIndex, h ))
-
-
-sortWords : List ( Word, Int, Hanzi ) -> List ( Word, Int )
-sortWords words =
-    let
-        comp : ( Word, Int, Hanzi ) -> ( Word, Int, Hanzi ) -> Order
-        comp ( w1, i1, h1 ) ( w2, i2, h2 ) =
-            compare h1 h2
-    in
-    words
-        |> List.sortWith comp
-        |> List.map (\( w, i, _ ) -> ( w, i ))
-
-
 update : Backend.Uuid -> Msg -> Model -> ( Model, Cmd Msg )
 update uuid msg model =
     case ( model, msg ) of
@@ -333,28 +279,29 @@ update uuid msg model =
                     parseProgress storage.json
             in
             initGame
-                (wordChain
-                    |> offsetWords
-                    |> sortWords
-                )
+                wordChain
                 today
                 progress
 
         ( Playing game, InputHanzi txt ) ->
             ( Playing
-                { game | currentInput = txt }
+                { game | currentInput = txt, errorMsg = Nothing }
             , Cmd.none
             )
 
         ( Playing game, UserPressedEnter ) ->
-            let
-                txt =
-                    String.toCodePoints game.currentInput
-                        |> List.filter (\code -> code <= 126)
-                        |> String.fromCodePoints
-            in
-            processInput txt game
-                |> processRoundFinished uuid
+            if game.currentInput == "" then
+                ( model, Cmd.none )
+
+            else
+                let
+                    txt =
+                        String.toCodePoints game.currentInput
+                            |> List.filter (\code -> code <= 126)
+                            |> String.fromCodePoints
+                in
+                processInput txt game
+                    |> processRoundFinished uuid
 
         ( Playing game, OnGiveUpClicked ) ->
             gameOver uuid GiveUp game
@@ -367,13 +314,13 @@ update uuid msg model =
 
         -- KEYBOARD
         ( Playing game, KeyboardInput char ) ->
-            ( Playing { game | currentInput = game.currentInput ++ char }, Cmd.none )
+            ( Playing { game | currentInput = game.currentInput ++ char, errorMsg = Nothing }, Cmd.none )
 
         ( Playing game, KeyboardBackspace ) ->
-            ( Playing { game | currentInput = String.dropRight 1 game.currentInput }, Cmd.none )
+            ( Playing { game | currentInput = String.dropRight 1 game.currentInput, errorMsg = Nothing }, Cmd.none )
 
         ( Playing game, KeyboardClear ) ->
-            ( Playing { game | currentInput = "" }, Cmd.none )
+            ( Playing { game | currentInput = "", errorMsg = Nothing }, Cmd.none )
 
         -- OTHER
         ( GameOver success endScore game, OnMouseEnterCharacter id ) ->
@@ -426,12 +373,12 @@ processInput txt game =
 
         Err err ->
             -- TODO: show error message
-            { game | currentInput = "" }
+            { game | currentInput = "", errorMsg = Just err }
 
 
 processRoundFinished : Backend.Uuid -> GameModel -> ( Model, Cmd Msg )
 processRoundFinished uuid game =
-    if List.length (allWrongAnswers game) > 5 then
+    if List.length (WordChain.wrongAnswersOf game.wordChain game.answers) > 5 then
         -- Too many wrong answers
         gameOver uuid Failed game
 
@@ -440,7 +387,7 @@ processRoundFinished uuid game =
             finished =
                 game.wordChain
                     |> List.foldl
-                        (\( word, _ ) acc -> isWordFullyKnown game word && acc)
+                        (\( word, _ ) acc -> isWordFullyKnown word game.answers && acc)
                         True
         in
         if finished then
@@ -451,57 +398,17 @@ processRoundFinished uuid game =
             ( Playing game, Cmd.none )
 
 
-allWrongAnswers : GameModel -> List PinyinPart
-allWrongAnswers game =
-    game.answers
-        |> List.filter (\part -> not <| isPinyinValid part game.wordChain)
-
-
-isWordFullyKnown : GameModel -> Word -> Bool
-isWordFullyKnown game word =
-    word.characters
-        |> List.filter (\character -> not <| List.member character.pinyinPart game.answers)
-        |> List.length
-        |> (==) 0
-
-
-isPinyinValid : PinyinPart -> List ( Word, Int ) -> Bool
-isPinyinValid pinyinPart wordChain =
-    wordChain
-        |> List.find
-            (\( word, _ ) ->
-                List.find (\character -> pinyinPartsSimilarity character.pinyinPart pinyinPart == CompletelySimilar) word.characters
-                    |> Maybe.map (\_ -> True)
-                    |> Maybe.withDefault False
-            )
-        |> Maybe.map (\_ -> True)
-        |> Maybe.withDefault False
-
-
-isPinyinSimilar : PinyinPart -> List ( Word, Int ) -> Bool
-isPinyinSimilar pinyinPart wordChain =
-    wordChain
-        |> List.find
-            (\( word, _ ) ->
-                List.find (\character -> pinyinPartsSimilarity character.pinyinPart pinyinPart == PinyinSimilar) word.characters
-                    |> Maybe.map (\_ -> True)
-                    |> Maybe.withDefault False
-            )
-        |> Maybe.map (\_ -> True)
-        |> Maybe.withDefault False
-
-
 gameToEndScore game =
-    { mistakes = List.length (allWrongAnswers game)
+    { mistakes = List.length (WordChain.wrongAnswersOf game.wordChain game.answers)
     , attempts =
         game.answers
             |> List.reverse
             |> List.map
                 (\a ->
-                    if isPinyinValid a game.wordChain then
+                    if WordChain.isPinyinValid a game.wordChain then
                         Correct
 
-                    else if isPinyinSimilar a game.wordChain then
+                    else if WordChain.isPinyinSimilar a game.wordChain then
                         Almost
 
                     else
@@ -512,22 +419,6 @@ gameToEndScore game =
 
 
 --
-
-
-isCharacterKnown : GameModel -> Character -> Bool
-isCharacterKnown game character =
-    List.member character.pinyinPart game.answers
-
-
-isCharacterSimilar : GameModel -> Character -> Bool
-isCharacterSimilar game character =
-    List.any (\part -> part.pinyin == character.pinyinPart.pinyin) game.answers
-
-
-wrongAnswersOf : GameModel -> List PinyinPart
-wrongAnswersOf game =
-    game.answers
-        |> List.filter (\part -> not <| isPinyinValid part game.wordChain)
 
 
 viewHistoryModal : Bool -> GameModel -> Element Msg
@@ -724,10 +615,10 @@ view device model =
             let
                 wordStateFn character =
                     --WordChain.Show False
-                    if isCharacterKnown game character then
+                    if isCharacterKnown character game.answers then
                         WordChain.Known
 
-                    else if isCharacterSimilar game character then
+                    else if isCharacterSimilar character game.answers then
                         WordChain.Similar
 
                     else
@@ -740,7 +631,7 @@ view device model =
                 , wordlist = wordList game wordStateFn
                 , bottom =
                     [ Common.viewInput onMobile game { msgUserPressedEnter = UserPressedEnter, msgInputHanzi = InputHanzi }
-                    , Common.viewWrongAnwers onMobile (wrongAnswersOf game)
+                    , Common.viewWrongAnwers onMobile (WordChain.wrongAnswersOf game.wordChain game.answers)
                     , el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
                     , viewIsGameAReplay game
                     ]
@@ -752,7 +643,7 @@ view device model =
         GameOver state endScore game ->
             let
                 wordStateFn character =
-                    WordChain.Show <| isCharacterKnown game character
+                    WordChain.Show <| isCharacterKnown character game.answers
 
                 success =
                     case state of

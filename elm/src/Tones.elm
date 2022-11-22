@@ -9,6 +9,7 @@ type Tone
     | Third
     | Forth
     | Fifth
+    | FifthOr Tone
 
 
 toneToColor tone =
@@ -27,6 +28,30 @@ toneToColor tone =
 
         Fifth ->
             rgb255 150 150 150
+
+        FifthOr other ->
+            toneToColor other
+
+
+isMatchingTones t1 t2 =
+    case ( t1, t2 ) of
+        ( FifthOr a, FifthOr b ) ->
+            a == b
+
+        ( FifthOr _, Fifth ) ->
+            True
+
+        ( Fifth, FifthOr _ ) ->
+            True
+
+        ( FifthOr x, y ) ->
+            x == y
+
+        ( y, FifthOr x ) ->
+            x == y
+
+        _ ->
+            t1 == t2
 
 
 replace : String -> String
@@ -73,7 +98,7 @@ toneReplacers =
     , String.replace "an2" "án"
     , String.replace "an3" "ǎn"
     , String.replace "an4" "àn"
-    , String.replace "an5" "ān"
+    , String.replace "an5" "an"
     , String.replace "ang1" "āng"
     , String.replace "ang2" "áng"
     , String.replace "ang3" "ǎng"
@@ -86,7 +111,7 @@ toneReplacers =
     , String.replace "eng2" "éng"
     , String.replace "eng3" "ěng"
     , String.replace "eng4" "èng"
-    , String.replace "eng5" "ēng"
+    , String.replace "eng5" "eng"
     , String.replace "in1" "īn"
     , String.replace "in2" "ín"
     , String.replace "in3" "ǐn"

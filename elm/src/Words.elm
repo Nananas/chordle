@@ -89,6 +89,9 @@ toneToString tone =
         Fifth ->
             "5"
 
+        FifthOr other ->
+            toneToString other
+
 
 pinyinPartsSimilarity : PinyinPart -> PinyinPart -> PinyinPartsSimilarity
 pinyinPartsSimilarity p1 p2 =
@@ -96,9 +99,13 @@ pinyinPartsSimilarity p1 p2 =
         CompletelySimilar
 
     else if p1.pinyin == p2.pinyin then
-        PinyinSimilar
+        if Tones.isMatchingTones p1.tone p2.tone then
+            CompletelySimilar
 
-    else if p1.tone == p2.tone then
+        else
+            PinyinSimilar
+
+    else if Tones.isMatchingTones p1.tone p2.tone then
         ToneSimilar
 
     else
@@ -168,17 +175,42 @@ similarWordsList words wordList =
 splitStringIntoPinyin : String -> Result String (List PinyinPart)
 splitStringIntoPinyin str =
     let
-        fn : Char -> ( List Char, List PinyinPart ) -> ( List Char, List PinyinPart )
-        fn char ( acc, parts ) =
-            case ( charToTone char, acc ) of
-                ( Nothing, _ ) ->
-                    ( char :: acc, parts )
+        recurse : List Char -> List PinyinPart -> List Char -> ( List Char, List PinyinPart )
+        recurse acc parts charsLeft =
+            case charsLeft of
+                [] ->
+                    ( acc, parts )
 
-                ( Just tone, [] ) ->
-                    ( [], parts )
+                [ one ] ->
+                    case ( charToTone one, acc ) of
+                        ( Just _, [] ) ->
+                            ( [ one ], parts )
 
-                ( Just tone, _ ) ->
-                    ( [], { pinyin = String.fromList <| List.reverse <| acc, tone = tone } :: parts )
+                        ( Nothing, _ ) ->
+                            ( one :: acc, parts )
+
+                        ( Just someTone, _ ) ->
+                            ( [], { pinyin = String.fromList <| List.reverse <| acc, tone = someTone } :: parts )
+
+                one :: two :: tail ->
+                    case ( charToTone one, charToTone two, acc ) of
+                        ( Just _, _, [] ) ->
+                            recurse [] parts (two :: tail)
+
+                        ( Just Fifth, Nothing, _ ) ->
+                            recurse [] ({ pinyin = String.fromList <| List.reverse <| acc, tone = Fifth } :: parts) (two :: tail)
+
+                        ( Just Fifth, Just Fifth, _ ) ->
+                            recurse [] ({ pinyin = String.fromList <| List.reverse <| acc, tone = Fifth } :: parts) tail
+
+                        ( Just Fifth, Just someTone, _ ) ->
+                            recurse [] ({ pinyin = String.fromList <| List.reverse <| acc, tone = FifthOr someTone } :: parts) tail
+
+                        ( Just someTone, _, _ ) ->
+                            recurse [] ({ pinyin = String.fromList <| List.reverse <| acc, tone = someTone } :: parts) (two :: tail)
+
+                        _ ->
+                            recurse (one :: acc) parts (two :: tail)
 
         result =
             str
@@ -187,14 +219,17 @@ splitStringIntoPinyin str =
                 |> String.toLower
                 |> String.toList
                 |> List.filter Char.isAlphaNum
-                |> List.foldl fn ( [], [] )
+                |> recurse [] []
     in
     case result of
+        ( [], [] ) ->
+            Err "Incorrect format, should be pinyin followed by a tone number (12345)"
+
         ( [], parts ) ->
             Ok (List.reverse parts)
 
         ( any, _ ) ->
-            Err "Missing tone number (12345)"
+            Err ("Incorrect format, should be pinyin followed by a tone number (12345), but got " ++ String.fromList (List.reverse any))
 
 
 formatPinyin : PinyinPart -> String
@@ -202,6 +237,37 @@ formatPinyin pinyinPart =
     pinyinPart.pinyin
         ++ toneToString pinyinPart.tone
         |> Tones.replace
+
+
+isCharacterKnown : Character -> List PinyinPart -> Bool
+isCharacterKnown character parts =
+    case
+        parts
+            |> List.find
+                (\{ pinyin, tone } ->
+                    pinyin
+                        == character.pinyinPart.pinyin
+                        && Tones.isMatchingTones tone character.pinyinPart.tone
+                )
+    of
+        Nothing ->
+            False
+
+        Just _ ->
+            True
+
+
+isCharacterSimilar : Character -> List PinyinPart -> Bool
+isCharacterSimilar character parts =
+    List.any (\part -> part.pinyin == character.pinyinPart.pinyin) parts
+
+
+isWordFullyKnown : Word -> List PinyinPart -> Bool
+isWordFullyKnown word parts =
+    word.characters
+        |> List.filter (\character -> not <| isCharacterKnown character parts)
+        |> List.length
+        |> (==) 0
 
 
 
@@ -493,7 +559,7 @@ clt123 =
     , newWord "今年" "jin1nian2" "NOUN: this year"
     , newWord "今天" "jin1tian1" "NOUN: today"
     , newWord "进" "jin4" "VERB: to enter"
-    , newWord "进来" "jin4//lai5" "VERB PLUS COMPLEMENT: to come in"
+    , newWord "进来" "jin4//lai52" "VERB PLUS COMPLEMENT: to come in"
     , newWord "经济" "jing1ji4" "NOUN: economics"
     , newWord "京剧" "jing1ju4" "NOUN: Beijing opera"
     , newWord "经理" "jing1li3" "NOUN: manager"
@@ -938,7 +1004,7 @@ clt4 =
     , newWord "开会" "kai1hui4" "VERB: to hold or attend a meeting"
     , newWord "全球" "quan2qiu2" "NOUN: the whole world"
     , newWord "见面" "jian4mian4" "VERB: to meet, to see each other"
-    , newWord "打算" "da3suan5" "VERB: to plan, to intend|NOUN: consideration, calculation"
+    , newWord "打算" "da3suan54" "VERB: to plan, to intend|NOUN: consideration, calculation"
     , newWord "第三者" "di4san1zhe3" "NOUN: third party|NOUN: the third (wo)man involved in a relationship"
     , newWord "软件" "ruan3jian4" "NOUN: software"
     , newWord "重要" "zhong4yao4" "ADJECTIVE: important, significant, major"
@@ -955,7 +1021,7 @@ clt4 =
     , newWord "位子" "wei4zi5" "NOUN: seat, place"
     , newWord "骂" "ma4" "VERB: to curse, to swear"
     , newWord "希望" "xi1wang4" "NOUN: hope, wish|VERB: to hope, to wish"
-    , newWord "看法" "kan4fa5" "NOUN: point of view, opinion"
+    , newWord "看法" "kan4fa53" "NOUN: point of view, opinion"
     , newWord "只" "zhi3" "ADVERB: only, just"
     , newWord "秋天" "qiu1tian1" "NOUN: autumn"
     , newWord "冬天" "dong1tian1" "NOUN: winter"
@@ -978,9 +1044,8 @@ clt4 =
     -- 10月27号
     , newWord "正常" "zheng4chang2" "ADJECTIVE: normal, regular"
     , newWord "心理学" "xin1li3xue2" "NOUN: psychology"
-    , newWord "看法" "kan4fa5" "NOUN: (point of) view, opinion"
-    , newWord "想法" "xiang3fa5" "NOUN: idea, opinion, what one has in mind"
-    , newWord "小心" "xiao3xin5" "ADJECTIVE: careful, mindful|VERB: be careful"
+    , newWord "想法" "xiang3fa53" "NOUN: idea, opinion, what one has in mind"
+    , newWord "小心" "xiao3xin51" "ADJECTIVE: careful, mindful|VERB: be careful"
     , newWord "邻居" "lin2ju1" "NOUN: neighbour"
     , newWord "市长" "shi4zhang3" "NOUN: mayor"
     , newWord "院长" "yuan4zhang3" "NOUN: dean"
