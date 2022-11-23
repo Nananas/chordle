@@ -204,7 +204,11 @@ viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, m
                                 |> el [ width <| fillPortion 1, alignTop ]
                         )
                     |> rowOrCol
-                        [ width fill
+                        [ if onMobile then
+                            width fill
+
+                          else
+                            width <| minimum 500 fill
                         , Element.Border.widthEach { top = 2, bottom = 2, left = 0, right = 0 }
                         , spacing rowOrColSpacing
                         ]
