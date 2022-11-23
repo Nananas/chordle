@@ -302,8 +302,9 @@ viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
             )
         |> Element.column
             [ spacing 4
-            , width fill
+            , width <| maximum 600 fill
             , height <| minimum 200 fill
+            , centerX
             , Element.Border.widthEach { top = 1, bottom = 1, left = 0, right = 0 }
             , Element.Border.color UI.accentColorLight
             ]

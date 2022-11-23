@@ -18,10 +18,6 @@ liftBoth fnM fnC ( model, cmd ) =
 
 
 minDesktopViewportWidth =
-    800
-
-
-maxSmallDesktopViewportWidth =
     1200
 
 
@@ -29,7 +25,6 @@ classifyViewport : { a | width : number, height : number } -> Device
 classifyViewport viewport =
     if viewport.width < minDesktopViewportWidth then
         mobile
-        --else if viewport.width < maxSmallDesktopViewportWidth then
 
     else
         desktop

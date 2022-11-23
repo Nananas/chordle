@@ -735,7 +735,7 @@ viewSingleHanzi onMobile wordStateFn showPopupForCharacter wordId id character =
 viewIsGameAReplay game =
     el [ centerX, Element.Font.color <| UI.gray, Element.Font.size 14 ] <|
         if Dict.member (Date.toRataDie game.today) game.progress then
-            column [ spacing 5 ]
+            column [ spacing 5, padding 5 ]
                 [ paragraph [] [ text "You already played today." ]
                 , paragraph [] [ text "This game is a replay and will not count towards your score." ]
                 ]
