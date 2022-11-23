@@ -89,7 +89,7 @@ singleChainGenerator ( from, to ) dictionary =
 
 
 excludedHanzi =
-    [ "子" ]
+    [ "子", "中", "学" ]
 
 
 multiChainGenerator : Int -> List Word -> Random.Generator WordChain
