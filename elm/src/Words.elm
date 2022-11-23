@@ -154,22 +154,32 @@ similarWordsList words wordList =
             )
 
 
+singleWordsList : List Word -> List Word
+singleWordsList wordList =
+    let
+        hanziSet =
+            wordList
+                |> List.map .characters
+                |> List.concat
+                |> List.map .hanzi
+                |> Set.fromList
 
---isWordFullyShown : Word -> Bool
---isWordFullyShown word =
---    let
---        go : List Character -> Bool -> Bool
---        go remaining acc =
---            case remaining of
---                head :: tail ->
---                    if head.show then
---                        acc && go tail True
---                    else
---                        acc && False
---                [] ->
---                    acc
---    in
---    go word.characters True
+        recurse acc words =
+            case words of
+                [] ->
+                    acc
+
+                head :: tail ->
+                    if
+                        head.characters
+                            |> List.any (\ch -> Set.member ch.hanzi hanziSet)
+                    then
+                        recurse (head :: acc) tail
+
+                    else
+                        recurse acc tail
+    in
+    recurse [] wordList
 
 
 splitStringIntoPinyin : String -> Result String (List PinyinPart)

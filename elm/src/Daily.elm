@@ -22,6 +22,7 @@ import List.Extra as List
 import MobileUI
 import Process
 import Random
+import Random.List
 import Storage exposing (Storage)
 import String.Extra as String
 import Task
@@ -270,9 +271,23 @@ update uuid msg model =
                 dictionary =
                     allWords Dict.empty
 
+                wordsWithoutConnection =
+                    singleWordsList dictionary
+
                 ( wordChain, _ ) =
                     Random.step
-                        (WordChain.multiChainGenerator 11 dictionary)
+                        (Random.map2
+                            (\ws ( mW, _ ) ->
+                                case mW of
+                                    Nothing ->
+                                        ws
+
+                                    Just w ->
+                                        ws ++ [ ( w, 100 ) ]
+                            )
+                            (WordChain.multiChainGenerator 10 dictionary)
+                            (Random.List.choose wordsWithoutConnection)
+                        )
                         seed
 
                 progress =
@@ -582,7 +597,16 @@ view device model =
         wordList game wordStateFn =
             let
                 offsetElements offset =
-                    if onMobile then
+                    if offset == 100 then
+                        [ el
+                            [ Element.Font.color UI.accentColor
+                            , htmlAttribute <| Html.Attributes.title "This word's hanzi are not connected to any other word"
+                            ]
+                          <|
+                            Icons.starFilled 24
+                        ]
+
+                    else if onMobile then
                         []
 
                     else
