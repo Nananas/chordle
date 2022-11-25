@@ -1027,7 +1027,7 @@ clt4 =
     , newWord "修车" "xiu1che1" "VERB: to repair a bike, car"
     , newWord "心理" "xin1li3" "NOUN: mentality, psychology"
     , newWord "紧张" "jin3zhang1" "ADJECTIVE: nervous, stressed, tense"
-    , newWord "出路" "chu1lu4" "NOUN: way out"
+    , newWord "出路" "chu1lu4" "NOUN: a way forward, a way out"
     , newWord "位子" "wei4zi5" "NOUN: seat, place"
     , newWord "骂" "ma4" "VERB: to curse, to swear"
     , newWord "希望" "xi1wang4" "NOUN: hope, wish|VERB: to hope, to wish"
