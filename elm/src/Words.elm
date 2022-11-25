@@ -332,7 +332,7 @@ clt123 =
     , newWord "爱" "ai4" "VERB: to love"
     , newWord "安全" "an1quan2" "NOUN: safety, security"
     , newWord "爸爸" "ba4ba5" "NOUN: dad"
-    , newWord "吧" "ba5" "MODAL PARTICLE: (a modal particle)"
+    , newWord "吧" "ba5" "MODAL PARTICLE: particle indicating a suggestion or request"
     , newWord "白" "bai2" "ADJECTIVE: white"
     , newWord "拜拜" "bai2bai2" "IDIOM EXPRESSION: bye-bye (transliteration)"
     , newWord "白马王子" "bai2ma3wang2zi3" "NOUN: knight in shining armor"
