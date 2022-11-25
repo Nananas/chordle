@@ -1071,4 +1071,20 @@ clt4 =
     , newWord "微" "wei1" "NOUN: one millionth part of, micro-"
     , newWord "政府" "zheng4fu3" "NOUN: government"
     , newWord "老百姓" "lao3bai3xing4" "NOUN: civilians, common people"
+
+    -- 24月11号
+    , newWord "世界" "shi4jie4" "NOUN: the world"
+    , newWord "球员" "qiu2yuan2" "NOUN: ball sport club member, footballer"
+    , newWord "足球" "zu2qiu2" "NOUN: football, soccer"
+    , newWord "进球" "jin4qiu2" "VERB: to score a goal|NOUN: a goal (sport)"
+    , newWord "球门" "qiu2men2" "NOUN: the goal gate"
+    , newWord "球队" "qiu2dui4" "NOUN: team (ball sport)"
+    , newWord "球迷" "qiu2mi2" "NOUN: fan (of a ball sport)"
+    , newWord "按" "an4" "VERB: to press, to push down"
+    , newWord "点" "dian3" "NOUN: (decimal）point | VERB: to click"
+    , newWord "举行" "ju3xing2" "VERB: to hold (a meeting, ceremony)"
+    , newWord "迷你裙" "mi2ni3qun2" "NOUN: miniskirt"
+    , newWord "市政厅" "shi4zheng4ting1" "NOUN: city hall"
+    , newWord "闹钟" "nao4zhong1" "NOUN: alarm (clock)"
+    , newWord "加班" "jia1ban1" "VERB: to work overtime, to work an extra shift"
     ]
