@@ -14,6 +14,7 @@ import Element.Border
 import Element.Events
 import Element.Font
 import Element.Input
+import Help
 import Html.Attributes
 import Icons
 import Json.Decode
@@ -66,6 +67,8 @@ type Msg
     | BackendMsg Backend.Msg
     | OnClickedHistoryMonthChange Int
     | OnClickedHistoryGotoToday
+    | OnToggleHelp
+    | NoOpString String
 
 
 type Model
@@ -86,6 +89,7 @@ type alias GameModel =
     , progress : Progress
     , showProgressPopup : Bool
     , historyShownDate : Date.Date
+    , showHelp : Bool
     }
 
 
@@ -126,6 +130,7 @@ initGame wordChain today progress =
         , progress = progress
         , showProgressPopup = False
         , historyShownDate = today
+        , showHelp = False
         }
     , Process.sleep 100
         |> Task.andThen (\_ -> Browser.Dom.focus idInput)
@@ -297,6 +302,16 @@ update uuid msg model =
                 wordChain
                 today
                 progress
+
+        ( Playing game, OnToggleHelp ) ->
+            ( Playing { game | showHelp = not game.showHelp }
+            , Cmd.none
+            )
+
+        ( GameOver s e game, OnToggleHelp ) ->
+            ( GameOver s e { game | showHelp = not game.showHelp }
+            , Cmd.none
+            )
 
         ( Playing game, InputHanzi txt ) ->
             ( Playing
@@ -586,9 +601,11 @@ view device model =
         onMobile =
             Utils.isOnMobile device
 
-        historyPopup : GameModel -> Element Msg
-        historyPopup game =
-            if game.showProgressPopup then
+        modals game =
+            if game.showHelp then
+                Help.view game.showHelp onMobile OnToggleHelp NoOpString
+
+            else if game.showProgressPopup then
                 viewHistoryModal onMobile game
 
             else
@@ -650,7 +667,7 @@ view device model =
             in
             Common.viewContainer onMobile
                 True
-                { popup = historyPopup game
+                { popup = modals game
                 , topbar = viewTopBar
                 , wordlist = wordList game wordStateFn
                 , bottom =
@@ -679,7 +696,7 @@ view device model =
             in
             Common.viewContainer onMobile
                 False
-                { popup = historyPopup game
+                { popup = modals game
                 , topbar = viewTopBar
                 , wordlist = wordList game wordStateFn
                 , bottom =
@@ -717,6 +734,7 @@ viewTopBar =
     row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Daily" ]
         [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
         , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory "Show history"
+        , UI.niceIconButton (Icons.questionmark 20) OnToggleHelp "Help"
         ]
 
 

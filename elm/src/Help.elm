@@ -123,9 +123,10 @@ viewDesktop showHelp toggleMsg noOpMsg =
                         , viewExampleHanziSimilar
                         , viewExampleHanziIncorrect
                         ]
+                    , text "    To type pinyin with a 'ǚ', use 'v'. So to write '旅', type 'lv3' for 'lü3'."
                     ]
                 , column [ spacing 3, width fill ]
-                    [ text "4. When all characters are found, or when more than 5 wrong attempts "
+                    [ text "4. When all characters are found, or when more than 6 wrong attempts "
                     , text "    were made, the round is over."
                     , text "    All characters are then shown, color coded by their tone."
                     , row [ spacing 20, centerX, padding 10 ]
@@ -135,9 +136,6 @@ viewDesktop showHelp toggleMsg noOpMsg =
                         , viewExampleHanziFinishedRound "四" Forth False
                         , viewExampleHanziFinishedRound "吧" Fifth False
                         ]
-                    ]
-                , column [ spacing 3 ]
-                    [ text "5. Now press 'Next' to go to the next round of words"
                     ]
                 , column [ paddingXY 0 10 ]
                     [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty) ++ " words!" ]
@@ -247,10 +245,12 @@ viewMobile showHelp toggleMsg noOpMsg =
                     , viewExampleHanziSimilar
                     , viewExampleHanziIncorrect
                     ]
+                , paragraph []
+                    [ text "    To type pinyin with a 'ǚ', use 'v'. So to write '旅', type 'lv3' for 'lü3'." ]
                 ]
             , column [ spacing 3, width fill ]
                 [ paragraph []
-                    [ text "4. When all characters are found, or when more than 5 wrong attempts "
+                    [ text "4. When all characters are found, or when more than 6 wrong attempts "
                     , text "    were made, the round is over."
                     , text "    All characters are then shown, color coded by their tone."
                     ]
@@ -261,9 +261,6 @@ viewMobile showHelp toggleMsg noOpMsg =
                     , viewExampleHanziFinishedRound "四" Forth False
                     , viewExampleHanziFinishedRound "吧" Fifth False
                     ]
-                ]
-            , column [ spacing 3 ]
-                [ text "5. Now press 'Next' to go to the next round of words"
                 ]
             , column [ paddingXY 0 10 ]
                 [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty) ++ " words" ]
@@ -320,8 +317,7 @@ viewExampleHanziIncorrect =
         , UI.rounded 5
         , height <| px 50
         , paddingXY 10 0
-        , Background.color <|
-            rgb255 226 226 226
+        , Background.color <| UI.errorColorLight
         ]
     <|
         el [ centerX, centerY, Font.size 20 ] <|
