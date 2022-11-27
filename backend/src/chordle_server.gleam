@@ -4,6 +4,7 @@ import gleam/erlang/process.{Subject}
 import gleam/http/request.{Request}
 import gleam/http/response
 import gleam/http
+import gleam/string
 import mist
 import gleam/result
 import gleam/io
@@ -72,8 +73,10 @@ pub fn main() {
     mist.serve(
       8080,
       handler.with_func(fn(req: Request(Body)) -> HandlerResponse {
+        io.debug(request.path_segments(req))
         case req.method, request.path_segments(req) {
           http.Get, ["main.js"] -> serve_file("main.js")
+          http.Get, ["words.json"] -> serve_file("words.json")
           http.Get, ["favicon.ico"] -> serve_file("favicon.ico")
           http.Get, [] -> serve_file("index.html")
           http.Post, ["event"] -> {
@@ -99,6 +102,13 @@ pub fn serve_file(filename: String) -> HandlerResponse {
   let size = mfile.size(file_path)
   assert Ok(fd) = mfile.open(file_path)
   response.new(200)
+  |> response.set_header(
+    "Content-Type",
+    case string.ends_with(filename, ".json") {
+      True -> "application/json"
+      False -> ""
+    },
+  )
   |> response.set_body(FileBody(fd, int.to_string(size), 0, size))
   |> Response
 }

@@ -1,10 +1,11 @@
 module Backend exposing (..)
 
 import DailyProgress exposing (..)
-import Dict
+import Dict exposing (Dict)
 import Http
 import Json.Decode
 import Json.Encode
+import Words
 
 
 eventUrl =
@@ -89,4 +90,15 @@ postTrainingFinished uuid { dictsActive, gameStats } =
         { url = eventUrl
         , body = Http.jsonBody body
         , expect = Http.expectWhatever NoOp
+        }
+
+
+type alias GetWordsResponse =
+    Result Http.Error (Dict String (List Words.Word))
+
+
+getWords msg =
+    Http.get
+        { url = "words.json"
+        , expect = Http.expectJson msg Words.wordsFileDecoder
         }

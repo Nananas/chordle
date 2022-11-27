@@ -261,8 +261,8 @@ updateProgressInStorage today dayProgress progress =
         }
 
 
-update : Backend.Uuid -> Msg -> Model -> ( Model, Cmd Msg )
-update uuid msg model =
+update : Backend.Uuid -> Words.Dictionaries -> Msg -> Model -> ( Model, Cmd Msg )
+update uuid dictionaries msg model =
     case ( model, msg ) of
         ( LoadingSeed, OnSeedDateLoaded ( seedInt, today ) ) ->
             let
@@ -274,7 +274,7 @@ update uuid msg model =
         ( LoadingStorage seed today, OnStorageLoaded storage ) ->
             let
                 dictionary =
-                    allWords Dict.empty
+                    allWords Dict.empty dictionaries
 
                 wordsWithoutConnection =
                     singleWordsList dictionary
@@ -595,15 +595,15 @@ viewHistoryModal onMobile game =
         ]
 
 
-view : Device -> Model -> Element Msg
-view device model =
+view : Device -> Words.Dictionaries -> Model -> Element Msg
+view device dictionaries model =
     let
         onMobile =
             Utils.isOnMobile device
 
         modals game =
             if game.showHelp then
-                Help.view game.showHelp onMobile OnToggleHelp NoOpString
+                Help.view game.showHelp onMobile dictionaries OnToggleHelp NoOpString
 
             else if game.showProgressPopup then
                 viewHistoryModal onMobile game

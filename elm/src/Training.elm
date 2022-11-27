@@ -185,8 +185,8 @@ init =
 --
 
 
-update : Backend.Uuid -> Msg -> Model -> ( Model, Cmd Msg )
-update uuid msg model =
+update : Backend.Uuid -> Words.Dictionaries -> Msg -> Model -> ( Model, Cmd Msg )
+update uuid dictionaries msg model =
     case ( model, msg ) of
         ( LoadingGameStatsFromStorage, OnStorageLoaded storage ) ->
             let
@@ -220,13 +220,13 @@ update uuid msg model =
                                 )
                                 words
                         )
-                        (allWords Dict.empty)
+                        (allWords Dict.empty dictionaries)
 
                 --wordsFoundDebug =
                 --allWords Dict.empty |> List.drop 1
                 --|> Debug.log "Debug stuff"
             in
-            if List.length wordsFound >= List.length (allWords Dict.empty) then
+            if List.length wordsFound >= List.length (allWords Dict.empty dictionaries) then
                 gameFinished
                     uuid
                     { wordsFound = wordsFound
@@ -372,7 +372,7 @@ update uuid msg model =
                         |> Set.fromList
 
                 b =
-                    allWords game.dictsActive
+                    allWords game.dictsActive dictionaries
                         |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
                         |> Set.fromList
             in
@@ -383,7 +383,7 @@ update uuid msg model =
             else
                 let
                     dictionary =
-                        allWords game.dictsActive
+                        allWords game.dictsActive dictionaries
                             |> List.filter (\word -> not <| List.member word game.wordsFound)
                 in
                 ( Ready game
@@ -412,10 +412,10 @@ update uuid msg model =
             )
 
         ( Ready game, OnRestartClick ) ->
-            restartGame game
+            restartGame dictionaries game
 
         ( GameFinished game, OnRestartClick ) ->
-            restartGame game
+            restartGame dictionaries game
 
         ( Ready game, OnToggleHelp ) ->
             ( Ready
@@ -439,22 +439,26 @@ update uuid msg model =
             ( Ready { game | unhideDictionary = not game.unhideDictionary }, Cmd.none )
 
         ( Ready game, OnToggleDictionaryActive dictName ) ->
-            ( Ready
-                { game
-                    | dictsActive =
-                        Dict.update dictName
-                            (\v ->
-                                case v of
-                                    Nothing ->
-                                        -- Default state is True
-                                        Just False
+            let
+                dictsActive =
+                    Dict.update dictName
+                        (\v ->
+                            case v of
+                                Nothing ->
+                                    -- Default state is True
+                                    Just False
 
-                                    Just active ->
-                                        Just <| not active
-                            )
-                            game.dictsActive
-                }
-            , Cmd.none
+                                Just active ->
+                                    Just <| not active
+                        )
+                        game.dictsActive
+
+                dictionary =
+                    allWords dictsActive dictionaries
+                        |> List.filter (\word -> not <| List.member word game.wordsFound)
+            in
+            ( Ready { game | dictsActive = dictsActive }
+            , Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
             )
 
         --
@@ -515,7 +519,7 @@ liftModel fn ( model, cmd ) =
     ( fn model, cmd )
 
 
-restartGame model =
+restartGame dictionaries model =
     let
         newGameStats =
             { correct = 0
@@ -530,7 +534,7 @@ restartGame model =
             , gameStats = newGameStats
         }
     , Cmd.batch
-        [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords model.dictsActive)
+        [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords model.dictsActive dictionaries)
         , Browser.Dom.focus Common.idInput
             |> Task.attempt (\_ -> NoOp)
         , Storage.setStorage
@@ -570,11 +574,11 @@ subscriptions model =
 -- VIEW
 
 
-view : Device -> Model -> Element Msg
-view device model =
+view : Device -> Words.Dictionaries -> Model -> Element Msg
+view device dictionaries model =
     case model of
         Ready game ->
-            viewGame device game
+            viewGame device dictionaries game
 
         GameFinished game ->
             viewGameFinished game.gameStats
@@ -583,8 +587,8 @@ view device model =
             UI.spinner
 
 
-viewGame : Device -> GameModel -> Element Msg
-viewGame device game =
+viewGame : Device -> Words.Dictionaries -> GameModel -> Element Msg
+viewGame device dictionaries game =
     let
         onMobile =
             isOnMobile device
@@ -595,8 +599,8 @@ viewGame device game =
                 , height fill
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                 ]
-                [ viewDictionaryModal onMobile game
-                , Help.view game.showHelp onMobile OnToggleHelp NoOpString
+                [ viewDictionaryModal onMobile dictionaries game
+                , Help.view game.showHelp onMobile dictionaries OnToggleHelp NoOpString
                 ]
 
         contentSpacing =
@@ -609,7 +613,7 @@ viewGame device game =
     Common.viewContainer onMobile
         True
         { popup = modals
-        , topbar = viewTopBar onMobile game
+        , topbar = viewTopBar onMobile dictionaries game
         , wordlist =
             game.wordChain
                 |> List.indexedMap
@@ -644,8 +648,8 @@ viewGame device game =
         }
 
 
-viewDictionaryModal : Bool -> GameModel -> Element Msg
-viewDictionaryModal onMobile game =
+viewDictionaryModal : Bool -> Dictionaries -> GameModel -> Element Msg
+viewDictionaryModal onMobile dictionaries game =
     let
         modalFn =
             if onMobile then
@@ -662,7 +666,7 @@ viewDictionaryModal onMobile game =
                 600
 
         wordCount =
-            wordsInActiveDict game.dictsActive
+            wordsInActiveDict game.dictsActive dictionaries
     in
     if game.showDictionaryModal then
         modalFn OnToggleDictionaryModal
@@ -685,10 +689,10 @@ viewDictionaryModal onMobile game =
                                 Icons.eye 20
                         )
                 ]
-            , Words.allDicts
-                |> List.map (\( dictName, _ ) -> UI.niceToggleButton dictName (OnToggleDictionaryActive dictName) Nothing <| dictActive game dictName)
+            , Words.allDictNames dictionaries
+                |> List.map (\dictName -> UI.niceToggleButton dictName (OnToggleDictionaryActive dictName) Nothing <| dictActive game dictName)
                 |> row [ centerX, height shrink, paddingXY 10 0, spacing 20 ]
-            , Words.allWords game.dictsActive
+            , Words.allWords game.dictsActive dictionaries
                 |> List.map
                     (\word ->
                         Words.wordToStringParts word
@@ -733,8 +737,8 @@ viewDictionaryModal onMobile game =
         none
 
 
-viewTopBar : Bool -> GameModel -> Element Msg
-viewTopBar onMobile game =
+viewTopBar : Bool -> Words.Dictionaries -> GameModel -> Element Msg
+viewTopBar onMobile dictionaries game =
     let
         buttonFn =
             if onMobile then
@@ -790,20 +794,20 @@ viewTopBar onMobile game =
                                         ++ String.fromInt u
             ]
           <|
-            Element.Lazy.lazy3 viewWordsToGo onMobile game.dictsActive game.wordsFound
+            Element.Lazy.lazy4 viewWordsToGo onMobile game.dictsActive dictionaries game.wordsFound
         , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh iconSize)
         , el [ alignRight ] <| buttonFn "Dictionaries" OnToggleDictionaryModal (Icons.translate iconSize)
         , buttonFn "Help" OnToggleHelp (Icons.questionmark iconSize)
         ]
 
 
-viewWordsToGo onMobile dictsActive wordsFound =
+viewWordsToGo onMobile dictsActive dictionaries wordsFound =
     UI.niceTextWith [ Font.color UI.white ] <|
         let
             total =
-                wordsInActiveDict dictsActive
+                wordsInActiveDict dictsActive dictionaries
         in
-        (String.fromInt <| total - wordsToGo dictsActive wordsFound)
+        (String.fromInt <| total - wordsToGo dictsActive dictionaries wordsFound)
             ++ "/"
             ++ String.fromInt total
 
@@ -871,14 +875,14 @@ dictActive game dictName =
         |> Maybe.withDefault True
 
 
-wordsToGo dictsActive wordsFound =
-    Words.allWords dictsActive
+wordsToGo dictsActive dictionaries wordsFound =
+    Words.allWords dictsActive dictionaries
         |> List.filter (\w -> not <| List.member w wordsFound)
         |> List.length
 
 
-wordsInActiveDict dictsActive =
-    Words.allWords dictsActive
+wordsInActiveDict dictsActive dictionaries =
+    Words.allWords dictsActive dictionaries
         |> List.length
 
 

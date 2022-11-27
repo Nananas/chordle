@@ -14,17 +14,21 @@ import UI
 import Words exposing (allWords)
 
 
-view : Bool -> Bool -> msg -> (String -> msg) -> Element msg
-view showHelp onMobile toggleMsg noOpMsg =
+view : Bool -> Bool -> Words.Dictionaries -> msg -> (String -> msg) -> Element msg
+view showHelp onMobile dictionaries toggleMsg noOpMsg =
     if onMobile then
-        viewMobile showHelp toggleMsg noOpMsg
+        viewMobile showHelp dictionaries toggleMsg noOpMsg
 
     else
-        viewDesktop showHelp toggleMsg noOpMsg
+        viewDesktop showHelp dictionaries toggleMsg noOpMsg
 
 
-viewDesktop : Bool -> msg -> (String -> msg) -> Element msg
-viewDesktop showHelp toggleMsg noOpMsg =
+
+-- TODO: remove copy of desktop/mobile help
+
+
+viewDesktop : Bool -> Words.Dictionaries -> msg -> (String -> msg) -> Element msg
+viewDesktop showHelp dictionaries toggleMsg noOpMsg =
     if showHelp then
         UI.modal toggleMsg
             [ el [] <| UI.heading "How to play?"
@@ -138,7 +142,7 @@ viewDesktop showHelp toggleMsg noOpMsg =
                         ]
                     ]
                 , column [ paddingXY 0 10 ]
-                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty) ++ " words!" ]
+                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty dictionaries) ++ " words!" ]
                 ]
             , UI.viewFooter
             ]
@@ -147,8 +151,8 @@ viewDesktop showHelp toggleMsg noOpMsg =
         none
 
 
-viewMobile : Bool -> msg -> (String -> msg) -> Element msg
-viewMobile showHelp toggleMsg noOpMsg =
+viewMobile : Bool -> Words.Dictionaries -> msg -> (String -> msg) -> Element msg
+viewMobile showHelp dictionaries toggleMsg noOpMsg =
     if showHelp then
         MobileUI.modal toggleMsg <|
             [ el [] <| MobileUI.heading "How to play?"
@@ -263,7 +267,7 @@ viewMobile showHelp toggleMsg noOpMsg =
                     ]
                 ]
             , column [ paddingXY 0 10 ]
-                [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty) ++ " words" ]
+                [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty dictionaries) ++ " words" ]
             , UI.viewFooter
             ]
 

@@ -1,5 +1,6 @@
 module Main exposing (..)
 
+import Backend
 import Browser
 import Browser.Dom
 import Browser.Events
@@ -60,6 +61,7 @@ type Msg
     | ClickedChooseDaily
     | ClickedChooseTraining
     | OnStorageLoaded Storage.Storage
+    | OnGetWords Backend.GetWordsResponse
 
 
 
@@ -70,6 +72,7 @@ type alias Model =
     { device : Device
     , state : State
     , uuid : Maybe String
+    , dicts : Dict String (List Word)
     }
 
 
@@ -78,6 +81,7 @@ type State
     | ChooseGameType
     | Training Training.Model
     | Daily Daily.Model
+    | Error String
 
 
 
@@ -86,10 +90,8 @@ type State
 
 init : () -> ( Model, Cmd Msg )
 init _ =
-    ( { state = Loading, device = desktop, uuid = Nothing }
-    , Cmd.batch
-        [ Storage.loadStorage "id"
-        ]
+    ( { state = Loading, device = desktop, uuid = Nothing, dicts = Dict.empty }
+    , Storage.loadStorage "id"
     )
 
 
@@ -118,6 +120,20 @@ update msg model =
                 Err err ->
                     ( model, Random.generate UUIDGenerated uuidStringGenerator )
 
+        ( OnGetWords (Ok dictionaries), Loading ) ->
+            ( { model
+                | dicts = dictionaries
+                , state = ChooseGameType
+              }
+            , Cmd.none
+            )
+
+        ( OnGetWords (Err err), Loading ) ->
+            ( { model | state = Error "I could not load the dictionaries." }, Cmd.none )
+
+        ( OnGetWords x, _ ) ->
+            ( model, Cmd.none )
+
         -- Forward storage subscriptions
         -- doing this in subscriptions does not seem to work well
         ( OnStorageLoaded storage, Training _ ) ->
@@ -144,9 +160,9 @@ update msg model =
         ( OnGetViewport { viewport }, _ ) ->
             ( { model
                 | device = classifyViewport viewport
-                , state = ChooseGameType
+                , state = Loading
               }
-            , Cmd.none
+            , Backend.getWords OnGetWords
             )
 
         ( OnResizeViewport width height, _ ) ->
@@ -166,7 +182,7 @@ update msg model =
             ( { model | state = ChooseGameType }, Cmd.none )
 
         ( TrainingMsg trainingMsg, Training trainingModel ) ->
-            Training.update model.uuid trainingMsg trainingModel
+            Training.update model.uuid model.dicts trainingMsg trainingModel
                 |> liftBoth Training TrainingMsg
                 |> setStateIn model
 
@@ -177,7 +193,7 @@ update msg model =
             ( { model | state = ChooseGameType }, Cmd.none )
 
         ( DailyMsg dailyMsg, Daily dailyModel ) ->
-            Daily.update model.uuid dailyMsg dailyModel
+            Daily.update model.uuid model.dicts dailyMsg dailyModel
                 |> liftBoth Daily DailyMsg
                 |> setStateIn model
 
@@ -227,12 +243,20 @@ view model =
                 viewChooseGameType
 
             Training trainingModel ->
-                Training.view model.device trainingModel
+                Training.view model.device model.dicts trainingModel
                     |> Element.map TrainingMsg
 
             Daily dailyModel ->
-                Daily.view model.device dailyModel
+                Daily.view model.device model.dicts dailyModel
                     |> Element.map DailyMsg
+
+            Error msg ->
+                el [ centerX, centerY ] <|
+                    column [ alignLeft, spacing 30 ] <|
+                        [ UI.niceText "Something went wrong:"
+                        , UI.niceTextWith [ Font.color UI.errorColorLight ] msg
+                        , UI.niceText "Please try again later..."
+                        ]
 
 
 viewChooseGameType =

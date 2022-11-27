@@ -15,7 +15,8 @@ minify:
 archive:
 	tar -C ../static -czf chordle.tar.gz main.js \
 	index.html \
-	favicon.ico
+	favicon.ico \
+	words.json
 
 test:
 	elm-test

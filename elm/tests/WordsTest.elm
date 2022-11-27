@@ -1,5 +1,6 @@
 module WordsTest exposing (..)
 
+import Dict
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
@@ -11,7 +12,29 @@ import Words
 suite : Test
 suite =
     describe "parsing text into pinyin"
-        [ test "pinyin 1" <|
+        [ test "dictionary 1" <|
+            \_ ->
+                let
+                    str =
+                        "{\"dictionaries\": {}}"
+                in
+                Words.wordsFromJson str
+                    |> Expect.equal Dict.empty
+        , test "dictionary 2" <|
+            \_ ->
+                let
+                    str =
+                        "{\"dictionaries\": {\"abc\":[ [\"点\", \"dian3\", \"NOUN: (decimal）point | VERB: to click\"] ]}}"
+                in
+                Words.wordsFromJson str
+                    |> Expect.equal
+                        (Dict.fromList
+                            [ ( "abc"
+                              , [ Words.newWord "点" "dian3" "NOUN: (decimal）point | VERB: to click" ]
+                              )
+                            ]
+                        )
+        , test "pinyin 1" <|
             \_ ->
                 Words.splitStringIntoPinyin "yi1"
                     |> Expect.equal (Ok [ { pinyin = "yi", tone = Tones.First } ])
