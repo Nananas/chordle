@@ -166,12 +166,13 @@ similarWordsList words wordList =
 singleWordsList : List Word -> List Word
 singleWordsList wordList =
     let
-        hanziSet =
+        hanziFreqs =
             wordList
                 |> List.map .characters
                 |> List.concat
                 |> List.map .hanzi
-                |> Set.fromList
+                |> List.frequencies
+                |> Dict.fromList
 
         recurse acc words =
             case words of
@@ -181,7 +182,15 @@ singleWordsList wordList =
                 head :: tail ->
                     if
                         head.characters
-                            |> List.any (\ch -> Set.member ch.hanzi hanziSet)
+                            |> List.all
+                                (\ch ->
+                                    case Dict.get ch.hanzi hanziFreqs of
+                                        Just 1 ->
+                                            True
+
+                                        _ ->
+                                            False
+                                )
                     then
                         recurse (head :: acc) tail
 
