@@ -735,7 +735,7 @@
 		-- 11月10号
 		["离开", "li2kai1", "VERB: to leave, to depart"],
 
-		-- 17月11号
+		-- 11月17号
 		["果酱", "guo3jiang4", "NOUN: jam (preserved fruit)"],
 		["巧克力酱", "qiao3ke4li4jiang4", "NOUN: chocolate sauce"],
 		["酱油", "jiang4you2", "NOUN: soy sauce"],
@@ -743,7 +743,7 @@
 		["政府", "zheng4fu3", "NOUN: government"],
 		["老百姓", "lao3bai3xing4", "NOUN: civilians, common people"],
 
-		-- 24月11号
+		-- 11月24号
 		["世界", "shi4jie4", "NOUN: the world"],
 		["球员", "qiu2yuan2", "NOUN: ball sport club member, footballer"],
 		["足球", "zu2qiu2", "NOUN: football, soccer"],
@@ -757,7 +757,23 @@
 		["迷你裙", "mi2ni3qun2", "NOUN: miniskirt"],
 		["市政厅", "shi4zheng4ting1", "NOUN: city hall"],
 		["闹钟", "nao4zhong1", "NOUN: alarm (clock)"],
-		["加班", "jia1ban1", "VERB: to work overtime, to work an extra shift"]
+		["加班", "jia1ban1", "VERB: to work overtime, to work an extra shift"],
+
+		-- 12月2号
+		["事情", "shi4qing52", "NOUN: affair, matter, thing, stuff"],
+		["砍树", "kan3shu4", "VERB: to chop down trees, to chop wood"],
+		["科学", "ke1xue2", "NOUN: science|ADJECTIVE: scientific"],
+		["公的", "gong1de5", "ADJECTIVE: (of an animal) male"],
+		["母的", "mu3de5", "ADJECTIVE: (of an animal) female"],
+		["够", "gou4", "ADJECTIVE: enough, sufficient"],
+		["信封", "xin4feng1", "NOUN: an envelope"],
+		["封", "feng1", "MEASURE WORD: something enveloped"],
+		["封城", "feng1cheng2", "VERB: to lock down a city"],
+		["解放", "jie3fang4", "VERB: to liberate, to free"],
+		["解封", "jie3feng1", "VERB: to lift a lockdown"],
+
+		["自由", "zi4you2", "NOUN: freedom|ADJECTIVE: free"],
+		["民工", "min2gong1", "NOUN: worker, labourer (usually on public projects)|NOUN: migrant labourer (usually farmers)"]
 		]
 	}
 }
