@@ -14,15 +14,22 @@ import Utils
 import Words exposing (..)
 
 
+type alias WordChainWord =
+    { word : Word
+    , offset : Int
+    , isOrphan : Bool
+    }
+
+
 type alias WordChain =
-    List ( Word, Int )
+    List WordChainWord
 
 
 isPinyinValid : PinyinPart -> WordChain -> Bool
 isPinyinValid pinyinPart wordChain =
     wordChain
         |> List.find
-            (\( word, _ ) ->
+            (\{ word } ->
                 List.find (\character -> pinyinPartsSimilarity character.pinyinPart pinyinPart == CompletelySimilar) word.characters
                     |> Maybe.map (\_ -> True)
                     |> Maybe.withDefault False
@@ -35,7 +42,7 @@ isPinyinSimilar : PinyinPart -> WordChain -> Bool
 isPinyinSimilar pinyinPart wordChain =
     wordChain
         |> List.find
-            (\( word, _ ) ->
+            (\{ word } ->
                 List.find (\character -> pinyinPartsSimilarity character.pinyinPart pinyinPart == PinyinSimilar) word.characters
                     |> Maybe.map (\_ -> True)
                     |> Maybe.withDefault False
@@ -83,7 +90,7 @@ singleChainGenerator ( from, to ) dictionary =
                         (\( selected, _ ) ->
                             startWord
                                 :: selected
-                                |> List.map (\w -> ( w, 0 ))
+                                |> List.map (\w -> WordChainWord w 0 False)
                         )
             )
 
@@ -92,8 +99,8 @@ excludedHanzi =
     [ "子", "中", "学" ]
 
 
-multiChainGenerator : Int -> List Word -> Random.Generator WordChain
-multiChainGenerator maximumAmount dictionary =
+multiChainGenerator : Int -> Int -> List Word -> Random.Generator WordChain
+multiChainGenerator maximumAmount maximumSingleChainLength dictionary =
     let
         randomSimilarWordFrom : List Word -> List Word -> Random.Generator ( Maybe Word, List Word )
         randomSimilarWordFrom words dict =
@@ -108,8 +115,8 @@ multiChainGenerator maximumAmount dictionary =
             word.characters
                 |> List.any (\ch -> List.member ch.hanzi excludedHanzi)
 
-        one : List Word -> Random.Generator ( List Word, List Word )
-        one dict =
+        one : List Word -> List Word -> Random.Generator ( List Word, List Word )
+        one acc dict =
             dict
                 -- Exclude some very common characters from the initial search word
                 |> List.filter (not << isExcluded)
@@ -118,18 +125,18 @@ multiChainGenerator maximumAmount dictionary =
                     (\( mWord, dictWithout ) ->
                         case mWord of
                             Nothing ->
-                                ( [], dictWithout )
+                                ( acc, dictWithout )
 
                             Just word ->
-                                ( [ word ], dictWithout )
+                                ( word :: acc, dictWithout )
                     )
 
         recurse : Int -> ( List Word, List Word ) -> Random.Generator ( List Word, List Word )
         recurse limit ( acc, dict ) =
-            if limit < 0 then
+            if limit <= 0 then
                 Random.constant ( acc, dict )
 
-            else if List.length acc > maximumAmount then
+            else if List.length acc >= maximumAmount then
                 Random.constant ( acc, dict )
 
             else
@@ -139,14 +146,14 @@ multiChainGenerator maximumAmount dictionary =
                         (\( mNewWord, _ ) ->
                             case mNewWord of
                                 Nothing ->
-                                    one dict
+                                    one acc dict
                                         |> Random.andThen (recurse (limit - 1))
 
                                 Just newWord ->
                                     recurse (limit - 1) ( newWord :: acc, dictionaryWithoutWord dict newWord )
                         )
     in
-    one dictionary
+    one [] dictionary
         |> Random.andThen (recurse 20)
         |> Random.map Tuple.first
         |> Random.map offsetWords
@@ -181,7 +188,7 @@ offsetWords words =
 
                             _ ->
                                 (List.findMap (hasOffsetWith word) acc
-                                    |> Maybe.withDefault ( word, List.length acc * 10, List.map .hanzi word.characters |> String.concat )
+                                    |> Maybe.withDefault ( word, 0, List.map .hanzi word.characters |> String.concat )
                                 )
                                     :: acc
                     )
@@ -197,16 +204,21 @@ offsetWords words =
         |> List.map (\( w, i, h ) -> ( w, i - minimumIndex, h ))
 
 
-sortWords : List ( Word, Int, Hanzi ) -> List ( Word, Int )
+sortWords : List ( Word, Int, Hanzi ) -> WordChain
 sortWords words =
     let
         comp : ( Word, Int, Hanzi ) -> ( Word, Int, Hanzi ) -> Order
         comp ( w1, i1, h1 ) ( w2, i2, h2 ) =
             compare h1 h2
+
+        singles =
+            words
+                |> List.map (\( w, _, _ ) -> w)
+                |> Words.singleWordsList
     in
     words
         |> List.sortWith comp
-        |> List.map (\( w, i, _ ) -> ( w, i ))
+        |> List.map (\( w, i, _ ) -> WordChainWord w i (List.member w singles))
 
 
 

@@ -79,7 +79,7 @@ type Model
 
 
 type alias GameModel =
-    { wordChain : List ( Word, Int )
+    { wordChain : WordChain
     , currentInput : String
     , errorMsg : Maybe String
     , answers : List PinyinPart
@@ -288,9 +288,9 @@ update uuid dictionaries msg model =
                                         ws
 
                                     Just w ->
-                                        ws ++ [ ( w, 100 ) ]
+                                        ws ++ [ WordChain.WordChainWord w 0 True ]
                             )
-                            (WordChain.multiChainGenerator 10 dictionary)
+                            (WordChain.multiChainGenerator 11 0 dictionary)
                             (Random.List.choose wordsWithoutConnection)
                         )
                         seed
@@ -417,7 +417,7 @@ processRoundFinished uuid game =
             finished =
                 game.wordChain
                     |> List.foldl
-                        (\( word, _ ) acc -> isWordFullyKnown word game.answers && acc)
+                        (\{ word } acc -> isWordFullyKnown word game.answers && acc)
                         True
         in
         if finished then
@@ -428,6 +428,7 @@ processRoundFinished uuid game =
             ( Playing game, Cmd.none )
 
 
+gameToEndScore : GameModel -> EndScore
 gameToEndScore game =
     { mistakes = List.length (WordChain.wrongAnswersOf game.wordChain game.answers)
     , attempts =
@@ -613,27 +614,29 @@ view device dictionaries model =
 
         wordList game wordStateFn =
             let
-                offsetElements offset =
-                    if offset == 100 then
+                offsetElements offset isOrphan =
+                    if isOrphan then
                         [ el
                             [ Element.Font.color UI.accentColor
+                            , width <| px 50
                             , htmlAttribute <| Html.Attributes.title "This word's hanzi are not connected to any other word"
                             ]
                           <|
-                            Icons.starFilled 24
+                            el [ centerX ] <|
+                                Icons.starFilled 24
                         ]
 
                     else if onMobile then
                         []
 
                     else
-                        List.repeat offset (el [ width <| px <| 50 ] none)
+                        List.repeat (min 4 offset) (el [ width <| px <| 50 ] none)
             in
             game.wordChain
                 |> List.indexedMap
-                    (\wordId ( word, offset ) ->
+                    (\wordId { word, offset, isOrphan } ->
                         row [ width fill, spacing 20, padding 5 ]
-                            [ offsetElements offset
+                            [ offsetElements offset isOrphan
                                 ++ (word.characters
                                         |> List.indexedMap
                                             (\id character ->

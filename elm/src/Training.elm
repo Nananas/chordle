@@ -617,7 +617,7 @@ viewGame device dictionaries game =
         , wordlist =
             game.wordChain
                 |> List.indexedMap
-                    (\wordId ( word, _ ) ->
+                    (\wordId { word } ->
                         row [ width fill, spacing 20, padding 5 ]
                             [ el [ width <| fillPortion 1 ] <| viewWordAnswers onMobile game wordId word
                             , el [ width <| fillPortion 2 ] <| Common.viewWordEnglish onMobile word
@@ -937,17 +937,17 @@ processRoundFinished game =
                 finished =
                     game.wordChain
                         |> List.foldl
-                            (\( word, _ ) acc -> isWordFullyKnown word game.answers && acc)
+                            (\{ word } acc -> isWordFullyKnown word game.answers && acc)
                             True
 
                 wordsFound =
                     List.foldl
-                        (\( w, _ ) acc ->
-                            if List.member w acc then
+                        (\{ word } acc ->
+                            if List.member word acc then
                                 acc
 
                             else
-                                w :: acc
+                                word :: acc
                         )
                         game.wordsFound
                         game.wordChain
