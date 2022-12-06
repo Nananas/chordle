@@ -116,7 +116,8 @@ viewWrongAnwers onMobile wrongAnswers =
             else
                 20
     in
-    (List.map (\w -> Just w) wrongAnswers ++ List.repeat (6 - List.length wrongAnswers) Nothing)
+    (List.map (\w -> Just w) wrongAnswers ++ List.repeat 6 Nothing)
+        |> List.take 6
         |> List.map
             (\mPart ->
                 el
