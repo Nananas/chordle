@@ -10,7 +10,8 @@ pub type PageEvent {
 
 pub type Event {
   Daily(event: DailyEvent)
-  Training(event: TrainingEvent)
+  TrainingFinished(event: TrainingFinishedEvent)
+  TrainingRound(event: TrainingRoundEvent)
 }
 
 pub type DailyEvent {
@@ -23,12 +24,21 @@ pub type DailyEvent {
   )
 }
 
-pub type TrainingEvent {
-  TrainingEvent(
+pub type TrainingFinishedEvent {
+  TrainingFinishedEvent(
     dicts_active: List(String),
     attempts: Int,
     correct: Int,
     retries: Int,
+  )
+}
+
+pub type TrainingRoundEvent {
+  TrainingRoundEvent(
+    dicts_active: List(String),
+    nr_words_found: Int,
+    success: Bool,
+    mistakes: Int,
   )
 }
 
@@ -45,7 +55,8 @@ pub fn page_event_to_json(page_event: PageEvent) -> json.Json {
 pub fn event_to_json(event: Event) -> json.Json {
   case event {
     Daily(e) -> daily_event_to_json(e)
-    Training(e) -> training_event_to_json(e)
+    TrainingFinished(e) -> training_finished_event_to_json(e)
+    TrainingRound(e) -> training_round_event_to_json(e)
   }
 }
 
@@ -59,12 +70,25 @@ pub fn daily_event_to_json(daily_event: DailyEvent) -> json.Json {
   ])
 }
 
-pub fn training_event_to_json(training_event: TrainingEvent) -> json.Json {
+pub fn training_finished_event_to_json(
+  training_event: TrainingFinishedEvent,
+) -> json.Json {
   json.object([
     #("dicts-active", json.array(training_event.dicts_active, json.string)),
     #("attempts", json.int(training_event.attempts)),
     #("correct", json.int(training_event.correct)),
     #("retries", json.int(training_event.retries)),
+  ])
+}
+
+pub fn training_round_event_to_json(
+  training_event: TrainingRoundEvent,
+) -> json.Json {
+  json.object([
+    #("dicts-active", json.array(training_event.dicts_active, json.string)),
+    #("nr-words-found", json.int(training_event.nr_words_found)),
+    #("success", json.bool(training_event.success)),
+    #("mistakes", json.int(training_event.mistakes)),
   ])
 }
 
@@ -79,16 +103,32 @@ pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
       dynamic.field("rata", of: dynamic.int),
     )
 
-  let training_event_decoder =
+  let training_finished_event_decoder =
     dynamic.decode4(
-      fn(a, b, c, d) { Training(event: TrainingEvent(a, b, c, d)) },
+      fn(a, b, c, d) {
+        TrainingFinished(event: TrainingFinishedEvent(a, b, c, d))
+      },
       dynamic.field("dicts-active", of: dynamic.list(dynamic.string)),
       dynamic.field("correct", of: dynamic.int),
       dynamic.field("attempts", of: dynamic.int),
       dynamic.field("retries", of: dynamic.int),
     )
 
-  let event_decoder = dynamic.any([daily_event_decoder, training_event_decoder])
+  let training_round_event_decoder =
+    dynamic.decode4(
+      fn(a, b, c, d) { TrainingRound(event: TrainingRoundEvent(a, b, c, d)) },
+      dynamic.field("dicts-active", of: dynamic.list(dynamic.string)),
+      dynamic.field("nr-words-found", of: dynamic.int),
+      dynamic.field("success", of: dynamic.bool),
+      dynamic.field("mistakes", of: dynamic.int),
+    )
+
+  let event_decoder =
+    dynamic.any([
+      daily_event_decoder,
+      training_finished_event_decoder,
+      training_round_event_decoder,
+    ])
 
   dynamic.decode3(
     PageEvent,

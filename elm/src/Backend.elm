@@ -64,6 +64,35 @@ postDaily uuid { state, attempts, mistakes, rata } =
         }
 
 
+postTrainingRoundEnd uuid { dictsActive, nrWordsFound, wasSuccess, mistakes } =
+    let
+        activeDicts : List String
+        activeDicts =
+            dictsActive
+                |> Dict.filter (\k v -> v)
+                |> Dict.keys
+
+        body =
+            Json.Encode.object
+                [ ( "page", Json.Encode.string "training" )
+                , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
+                , ( "event"
+                  , Json.Encode.object
+                        [ ( "dicts-active", Json.Encode.list Json.Encode.string activeDicts )
+                        , ( "nr-words-found", Json.Encode.int nrWordsFound )
+                        , ( "success", Json.Encode.bool wasSuccess )
+                        , ( "mistakes", Json.Encode.int mistakes )
+                        ]
+                  )
+                ]
+    in
+    Http.post
+        { url = eventUrl
+        , body = Http.jsonBody body
+        , expect = Http.expectWhatever NoOp
+        }
+
+
 postTrainingFinished uuid { dictsActive, gameStats } =
     let
         activeDicts : List String

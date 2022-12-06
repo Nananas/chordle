@@ -360,7 +360,7 @@ update uuid dictionaries msg model =
 
                     ( newModel, cmd ) =
                         processInput txt game
-                            |> processRoundFinished
+                            |> processRoundFinished uuid
                 in
                 ( Ready newModel, cmd )
 
@@ -408,7 +408,10 @@ update uuid dictionaries msg model =
                     , showTodoUpdateTimer = 2
                     , gameStats = newGameStats
                 }
-            , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
+            , Cmd.batch
+                [ Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
+                , roundFinishedPost uuid False game
+                ]
             )
 
         ( Ready game, OnRestartClick ) ->
@@ -552,6 +555,17 @@ restartGame dictionaries model =
 gameFinished : Backend.Uuid -> GameModel -> ( Model, Cmd Msg )
 gameFinished uuid model =
     ( GameFinished model, Backend.postTrainingFinished uuid model |> Cmd.map BackendMsg )
+
+
+roundFinishedPost : Backend.Uuid -> Bool -> GameModel -> Cmd Msg
+roundFinishedPost uuid wasSuccess game =
+    Backend.postTrainingRoundEnd uuid
+        { dictsActive = game.dictsActive
+        , nrWordsFound = List.length game.wordsFound
+        , wasSuccess = wasSuccess
+        , mistakes = List.length (WordChain.wrongAnswersOf game.wordChain game.answers)
+        }
+        |> Cmd.map BackendMsg
 
 
 
@@ -901,8 +915,8 @@ processInput txt game =
             { game | currentInput = "", errorMsg = Just err }
 
 
-processRoundFinished : GameModel -> ( GameModel, Cmd Msg )
-processRoundFinished game =
+processRoundFinished : Backend.Uuid -> GameModel -> ( GameModel, Cmd Msg )
+processRoundFinished uuid game =
     let
         withFocusNextBtn ( m, cmd1 ) =
             ( m
@@ -929,7 +943,10 @@ processRoundFinished game =
                 , gameStats = newGameStats
                 , errorMsg = Nothing
               }
-            , Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
+            , Cmd.batch
+                [ Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
+                , roundFinishedPost uuid False game
+                ]
             )
 
         else
@@ -982,6 +999,7 @@ processRoundFinished game =
                                 wordsFound
                         }
                     , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
+                    , roundFinishedPost uuid True game
                     ]
                 )
 
