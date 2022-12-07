@@ -220,14 +220,29 @@ offsetWords words =
 sortWords : List ( Word, Int, Hanzi ) -> WordChain
 sortWords words =
     let
-        comp : ( Word, Int, Hanzi ) -> ( Word, Int, Hanzi ) -> Order
-        comp ( w1, i1, h1 ) ( w2, i2, h2 ) =
-            compare h1 h2
-
         singles =
             words
                 |> List.map (\( w, _, _ ) -> w)
                 |> Words.singleWordsList
+
+        comp : ( Word, Int, Hanzi ) -> ( Word, Int, Hanzi ) -> Order
+        comp ( w1, i1, h1 ) ( w2, i2, h2 ) =
+            let
+                s1 =
+                    if List.member w1 singles then
+                        1
+
+                    else
+                        0
+
+                s2 =
+                    if List.member w2 singles then
+                        1
+
+                    else
+                        0
+            in
+            compare s1 s2
     in
     words
         |> List.sortWith comp
