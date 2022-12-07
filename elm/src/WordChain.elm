@@ -100,7 +100,7 @@ excludedHanzi =
 
 
 multiChainGenerator : Int -> Int -> List Word -> Random.Generator WordChain
-multiChainGenerator maximumAmount maximumSingleChainLength dictionary =
+multiChainGenerator maximumAmount maximumSubChainLength dictionary =
     let
         randomSimilarWordFrom : List Word -> List Word -> Random.Generator ( Maybe Word, List Word )
         randomSimilarWordFrom words dict =
@@ -115,7 +115,7 @@ multiChainGenerator maximumAmount maximumSingleChainLength dictionary =
             word.characters
                 |> List.any (\ch -> List.member ch.hanzi excludedHanzi)
 
-        one : List Word -> List Word -> Random.Generator ( List Word, List Word )
+        one : List Word -> List Word -> Random.Generator ( List Word, List Word, List Word )
         one acc dict =
             dict
                 -- Exclude some very common characters from the initial search word
@@ -125,32 +125,45 @@ multiChainGenerator maximumAmount maximumSingleChainLength dictionary =
                     (\( mWord, dictWithout ) ->
                         case mWord of
                             Nothing ->
-                                ( acc, dictWithout )
+                                ( acc, [], dictWithout )
 
                             Just word ->
-                                ( word :: acc, dictWithout )
+                                ( acc, [ word ], dictWithout )
                     )
 
-        recurse : Int -> ( List Word, List Word ) -> Random.Generator ( List Word, List Word )
-        recurse limit ( acc, dict ) =
-            if limit <= 0 then
+        recurse : Int -> ( List Word, List Word, List Word ) -> Random.Generator ( List Word, List Word )
+        recurse recursionLimit ( acc, subchain, dict ) =
+            if recursionLimit <= 0 then
                 Random.constant ( acc, dict )
 
-            else if List.length acc >= maximumAmount then
-                Random.constant ( acc, dict )
+            else if List.length acc + List.length subchain >= maximumAmount then
+                Random.constant ( acc ++ subchain, dict )
+
+            else if List.length subchain >= maximumSubChainLength then
+                one (acc ++ subchain) dict
+                    |> Random.andThen (recurse (recursionLimit - 1))
 
             else
-                similarWordsList acc dict
-                    |> Random.List.choose
+                Random.int 0 8
                     |> Random.andThen
-                        (\( mNewWord, _ ) ->
-                            case mNewWord of
-                                Nothing ->
-                                    one acc dict
-                                        |> Random.andThen (recurse (limit - 1))
+                        (\i ->
+                            if List.length subchain /= 1 && i == 0 then
+                                one (acc ++ subchain) dict
+                                    |> Random.andThen (recurse (recursionLimit - 1))
 
-                                Just newWord ->
-                                    recurse (limit - 1) ( newWord :: acc, dictionaryWithoutWord dict newWord )
+                            else
+                                similarWordsList subchain dict
+                                    |> Random.List.choose
+                                    |> Random.andThen
+                                        (\( mNewWord, _ ) ->
+                                            case mNewWord of
+                                                Nothing ->
+                                                    one (acc ++ subchain) dict
+                                                        |> Random.andThen (recurse (recursionLimit - 1))
+
+                                                Just newWord ->
+                                                    recurse (recursionLimit - 1) ( acc, newWord :: subchain, dictionaryWithoutWord dict newWord )
+                                        )
                         )
     in
     one [] dictionary

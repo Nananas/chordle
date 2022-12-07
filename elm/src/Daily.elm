@@ -290,7 +290,7 @@ update uuid dictionaries msg model =
                                     Just w ->
                                         ws ++ [ WordChain.WordChainWord w 0 True ]
                             )
-                            (WordChain.multiChainGenerator 11 0 dictionary)
+                            (WordChain.multiChainGenerator 11 6 dictionary)
                             (Random.List.choose wordsWithoutConnection)
                         )
                         seed
