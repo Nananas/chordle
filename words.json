@@ -773,7 +773,14 @@
 		["解封", "jie3feng1", "VERB: to lift a lockdown"],
 
 		["自由", "zi4you2", "NOUN: freedom|ADJECTIVE: free"],
-		["民工", "min2gong1", "NOUN: worker, labourer (usually on public projects)|NOUN: migrant labourer (usually farmers)"]
+		["民工", "min2gong1", "NOUN: worker, labourer (usually on public projects)|NOUN: migrant labourer (usually farmers)"],
+
+		-- 12月8号
+		["行书","xing2shu1","NOUN: (calligraphy) running script (hand-written, separate characters)"],
+		["草书","cao3shu1","NOUN: (calligraphy) cursive script (hand-written, hasty, connected characters)"],
+		["绿码","lv4ma3","NOUN: 'green sign', short for 'green health code'"],
+		["离婚","li2hun1","VERB: to divorce"],
+		["提","ti2","VERB: to lift, to raise (eg. a question)"]
 		]
 	}
 }
