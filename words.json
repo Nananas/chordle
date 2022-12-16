@@ -491,7 +491,6 @@
 		["忘", "wang4", "VERB: to forget"],
 		["位", "wei4", "MEASURE WORD: person(s) (polite)"],
 		["喂", "wei4", "INTERJECTION: hello, hey"],
-		["为人民服务", "wei4ren2min2fu2wu4", "IDIOM EXPRESSION: Serve the People!, CCP political slogan"],
 		["为什么", "wei4shen2me5", "QUESTION PRONOUN: why"],
 		["文化", "wen2hua4", "NOUN: culture"],
 		["文学", "wen2xue2", "NOUN: literature"],
@@ -780,7 +779,17 @@
 		["草书","cao3shu1","NOUN: (calligraphy) cursive script (hand-written, hasty, connected characters)"],
 		["绿码","lv4ma3","NOUN: 'green sign', short for 'green health code'"],
 		["离婚","li2hun1","VERB: to divorce"],
-		["提","ti2","VERB: to lift, to raise (eg. a question)"]
+		["提","ti2","VERB: to lift, to raise (eg. a question)"],
+		["故事", "gu4shi4", "NOUN: story"],
+
+		-- 12月15号
+		["气管","qi4guan3","NOUN: (anatomy) windpipe"],
+		["血管", "xue4guan3", "NOUN: blood vessel"],
+		["管", "guan3", "NOUN: tube, pipe|VERB: to discipline"],
+		["不管", "bu4guan3", "VERB: to take no care of|CONJUNCTION: no matter (what, who)"],
+		["管理", "guan3li3", "VERB: to manage, to take care of"],
+		["改错", "gai3cuo4", "VERB: to correct an error"],
+		["跑掉", "pao3diao4", "VERB: to run away, to flee"]
 		]
 	}
 }
