@@ -153,7 +153,9 @@ update msg model =
                 case decoded of
                     Ok activeDicts ->
                         ( { model
-                            | activeDicts = activeDicts
+                            | activeDicts =
+                                activeDicts
+                                    |> List.filter (\d -> Dict.member d model.dicts)
                             , state = ChooseGameType
                           }
                         , Cmd.none
