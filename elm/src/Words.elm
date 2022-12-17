@@ -59,6 +59,13 @@ wordToStringParts word =
     ( hanzi, pinyin, english )
 
 
+wordHanzi : Word -> String
+wordHanzi word =
+    word.characters
+        |> List.map .hanzi
+        |> String.join ""
+
+
 charToTone : Char -> Maybe Tone
 charToTone c =
     case String.fromList [ c ] |> String.toInt |> Maybe.withDefault 0 of
@@ -330,11 +337,11 @@ newWord hanzi pinyin english =
     }
 
 
-allWords : Dict String Bool -> Dictionaries -> List Word
-allWords dictsActive dictionaries =
+allWords : List String -> Dictionaries -> List Word
+allWords activeDicts dictionaries =
     dictionaries
         |> Dict.toList
-        |> List.filter (\( name, _ ) -> Dict.get name dictsActive |> Maybe.withDefault True)
+        |> List.filter (\( name, _ ) -> List.member name activeDicts)
         |> List.map Tuple.second
         |> List.concat
 

@@ -22,7 +22,6 @@ import Json.Decode
 import Json.Encode
 import List.Extra as List
 import MobileUI
-import Notifications
 import Process
 import Random
 import Random.List
@@ -49,14 +48,11 @@ type Msg
     | OnToggleScreenKeyboard
     | OnToggleDictionaryModal
     | OnToggleDictionaryShowAllWords
-    | OnToggleDictionaryActive String
     | OnRestartClick
       --
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
     | OnTick Time.Posix
-    | OnNotificationPermissionChanged String
-    | OnToggleNotifications
       --
     | OnActivity Time.Posix
       --
@@ -74,13 +70,13 @@ type Msg
 type Model
     = LoadingGameStatsFromStorage
     | LoadingWordsFoundFromStorage GameStats
-    | Initializing (List Word) GameStats
+    | Initializing (List String) GameStats
     | Ready GameModel
     | GameFinished GameModel
 
 
 type alias GameModel =
-    { wordsFound : List Word
+    { wordsFound : List String
     , gameStats : GameStats
 
     --
@@ -97,14 +93,12 @@ type alias GameModel =
     , showHelp : Bool
     , showDictionaryModal : Bool
     , unhideDictionary : Bool
-    , dictsActive : Dict String Bool
 
     --
     , useScreenKeyboardOnMobile : Bool
     , keyboardKeyFeedback : Maybe String
 
     --
-    , notificationsEnabled : Maybe Bool
     , lastActivity : Time.Posix
     }
 
@@ -185,8 +179,8 @@ init =
 --
 
 
-update : Backend.Uuid -> Words.Dictionaries -> Msg -> Model -> ( Model, Cmd Msg )
-update uuid dictionaries msg model =
+update : Backend.Uuid -> Words.Dictionaries -> List String -> Msg -> Model -> ( Model, Cmd Msg )
+update uuid dictionaries activeDicts msg model =
     case ( model, msg ) of
         ( LoadingGameStatsFromStorage, OnStorageLoaded storage ) ->
             let
@@ -203,32 +197,26 @@ update uuid dictionaries msg model =
 
         ( LoadingWordsFoundFromStorage gameStats, OnStorageLoaded storage ) ->
             let
-                words : List String
-                words =
+                wordsFound : List String
+                wordsFound =
                     storage.json
                         |> Json.Decode.decodeValue (Json.Decode.list Json.Decode.string)
                         |> Result.toMaybe
                         |> Maybe.withDefault []
 
-                ( wordsFound, dictionary ) =
-                    List.partition
-                        (\word ->
-                            List.member
-                                (word.characters
-                                    |> List.map .hanzi
-                                    |> String.join ""
-                                )
-                                words
-                        )
-                        (allWords Dict.empty dictionaries)
+                dictionary =
+                    allWords activeDicts dictionaries
+                        |> List.filter
+                            (\word -> not <| List.member (wordHanzi word) wordsFound)
 
                 --wordsFoundDebug =
                 --allWords Dict.empty |> List.drop 1
                 --|> Debug.log "Debug stuff"
             in
-            if List.length wordsFound >= List.length (allWords Dict.empty dictionaries) then
+            if List.length wordsFound >= List.length (allWords activeDicts dictionaries) then
                 gameFinished
                     uuid
+                    activeDicts
                     { wordsFound = wordsFound
                     , wordChain = []
                     , answers = []
@@ -241,8 +229,6 @@ update uuid dictionaries msg model =
                     , showHelp = False
                     , showDictionaryModal = False
                     , unhideDictionary = False
-                    , dictsActive = Dict.empty
-                    , notificationsEnabled = Nothing
                     , lastActivity = Time.millisToPosix 0
                     , useScreenKeyboardOnMobile = True
                     , keyboardKeyFeedback = Nothing
@@ -268,8 +254,6 @@ update uuid dictionaries msg model =
                 , showHelp = False
                 , showDictionaryModal = False
                 , unhideDictionary = False
-                , dictsActive = Dict.empty
-                , notificationsEnabled = Nothing
                 , lastActivity = Time.millisToPosix 0
                 , useScreenKeyboardOnMobile = True
                 , keyboardKeyFeedback = Nothing
@@ -280,12 +264,7 @@ update uuid dictionaries msg model =
                     { name = "words-found"
                     , json =
                         Json.Encode.list
-                            (\word ->
-                                word.characters
-                                    |> List.map .hanzi
-                                    |> String.join ""
-                                    |> Json.Encode.string
-                            )
+                            Json.Encode.string
                             wordsFound
                     }
                 , Process.sleep 100
@@ -293,22 +272,6 @@ update uuid dictionaries msg model =
                     |> Task.attempt (\_ -> NoOp)
                 ]
             )
-
-        ( Ready game, OnToggleNotifications ) ->
-            case game.notificationsEnabled of
-                Nothing ->
-                    ( Ready { game | notificationsEnabled = Just False }, Notifications.requestPermissions () )
-
-                Just enabled ->
-                    ( Ready { game | notificationsEnabled = Just <| not enabled }, Cmd.none )
-
-        ( Ready game, OnNotificationPermissionChanged "granted" ) ->
-            case game.notificationsEnabled of
-                Nothing ->
-                    ( Ready { game | notificationsEnabled = Just False }, Cmd.none )
-
-                Just _ ->
-                    ( Ready { game | notificationsEnabled = Just True }, onActivity )
 
         ( Ready game, OnActivity now ) ->
             ( Ready { game | lastActivity = now }, Cmd.none )
@@ -360,7 +323,7 @@ update uuid dictionaries msg model =
 
                     ( newModel, cmd ) =
                         processInput txt game
-                            |> processRoundFinished uuid
+                            |> processRoundFinished uuid activeDicts
                 in
                 ( Ready newModel, cmd )
 
@@ -368,23 +331,24 @@ update uuid dictionaries msg model =
             let
                 a =
                     game.wordsFound
-                        |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
                         |> Set.fromList
 
                 b =
-                    allWords game.dictsActive dictionaries
+                    dictionaries
+                        |> allWords activeDicts
                         |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
                         |> Set.fromList
             in
             --if List.length game.wordsFound >= List.length (allWords game.dictsActive) then
             if (Set.intersect a b |> Set.size) == Set.size b then
-                gameFinished uuid game
+                gameFinished uuid activeDicts game
 
             else
                 let
                     dictionary =
-                        allWords game.dictsActive dictionaries
-                            |> List.filter (\word -> not <| List.member word game.wordsFound)
+                        dictionaries
+                            |> allWords activeDicts
+                            |> List.filter (\word -> not <| List.member (wordHanzi word) game.wordsFound)
                 in
                 ( Ready game
                 , Cmd.batch
@@ -410,15 +374,15 @@ update uuid dictionaries msg model =
                 }
             , Cmd.batch
                 [ Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
-                , roundFinishedPost uuid False game
+                , roundFinishedPost uuid False activeDicts game
                 ]
             )
 
         ( Ready game, OnRestartClick ) ->
-            restartGame dictionaries game
+            restartGame dictionaries activeDicts game
 
         ( GameFinished game, OnRestartClick ) ->
-            restartGame dictionaries game
+            restartGame dictionaries activeDicts game
 
         ( Ready game, OnToggleHelp ) ->
             ( Ready
@@ -441,29 +405,6 @@ update uuid dictionaries msg model =
         ( Ready game, OnToggleDictionaryShowAllWords ) ->
             ( Ready { game | unhideDictionary = not game.unhideDictionary }, Cmd.none )
 
-        ( Ready game, OnToggleDictionaryActive dictName ) ->
-            let
-                dictsActive =
-                    Dict.update dictName
-                        (\v ->
-                            case v of
-                                Nothing ->
-                                    -- Default state is True
-                                    Just False
-
-                                Just active ->
-                                    Just <| not active
-                        )
-                        game.dictsActive
-
-                dictionary =
-                    allWords dictsActive dictionaries
-                        |> List.filter (\word -> not <| List.member word game.wordsFound)
-            in
-            ( Ready { game | dictsActive = dictsActive }
-            , Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
-            )
-
         --
         ( Ready game, OnMouseEnterCharacter id ) ->
             ( Ready { game | showPopupForCharacter = Just id }, Cmd.none )
@@ -479,23 +420,8 @@ update uuid dictionaries msg model =
 
                     else
                         { m | showTodoUpdate = Nothing }
-
-                withUpdateNotifications m =
-                    case m.notificationsEnabled of
-                        Just True ->
-                            if (Time.posixToMillis now - Time.posixToMillis m.lastActivity) > inactivityTime then
-                                ( { m | lastActivity = now }, Notifications.showNotification "Time for a CHORDLE!" )
-
-                            else
-                                ( m, Cmd.none )
-
-                        _ ->
-                            ( m, Cmd.none )
             in
-            game
-                |> withUpdateShowTodo
-                |> withUpdateNotifications
-                |> liftModel Ready
+            ( Ready (withUpdateShowTodo game), Cmd.none )
 
         ( GameFinished _, _ ) ->
             ( model, Cmd.none )
@@ -522,7 +448,7 @@ liftModel fn ( model, cmd ) =
     ( fn model, cmd )
 
 
-restartGame dictionaries model =
+restartGame dictionaries activeDicts model =
     let
         newGameStats =
             { correct = 0
@@ -537,7 +463,7 @@ restartGame dictionaries model =
             , gameStats = newGameStats
         }
     , Cmd.batch
-        [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords model.dictsActive dictionaries)
+        [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords activeDicts dictionaries)
         , Browser.Dom.focus Common.idInput
             |> Task.attempt (\_ -> NoOp)
         , Storage.setStorage
@@ -552,15 +478,15 @@ restartGame dictionaries model =
     )
 
 
-gameFinished : Backend.Uuid -> GameModel -> ( Model, Cmd Msg )
-gameFinished uuid model =
-    ( GameFinished model, Backend.postTrainingFinished uuid model |> Cmd.map BackendMsg )
+gameFinished : Backend.Uuid -> List String -> GameModel -> ( Model, Cmd Msg )
+gameFinished uuid activeDicts model =
+    ( GameFinished model, Backend.postTrainingFinished uuid activeDicts model |> Cmd.map BackendMsg )
 
 
-roundFinishedPost : Backend.Uuid -> Bool -> GameModel -> Cmd Msg
-roundFinishedPost uuid wasSuccess game =
+roundFinishedPost : Backend.Uuid -> Bool -> List String -> GameModel -> Cmd Msg
+roundFinishedPost uuid wasSuccess activeDicts game =
     Backend.postTrainingRoundEnd uuid
-        { dictsActive = game.dictsActive
+        { dictsActive = activeDicts
         , nrWordsFound = List.length game.wordsFound
         , wasSuccess = wasSuccess
         , mistakes = List.length (WordChain.wrongAnswersOf game.wordChain game.answers)
@@ -576,8 +502,13 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ case model of
-            Ready _ ->
-                Time.every 1000 OnTick
+            Ready { showTodoUpdate } ->
+                case showTodoUpdate of
+                    Nothing ->
+                        Sub.none
+
+                    _ ->
+                        Time.every 1000 OnTick
 
             _ ->
                 Sub.none
@@ -588,11 +519,11 @@ subscriptions model =
 -- VIEW
 
 
-view : Device -> Words.Dictionaries -> Model -> Element Msg
-view device dictionaries model =
+view : Device -> Words.Dictionaries -> List String -> Model -> Element Msg
+view device dictionaries activeDicts model =
     case model of
         Ready game ->
-            viewGame device dictionaries game
+            viewGame device dictionaries activeDicts game
 
         GameFinished game ->
             viewGameFinished game.gameStats
@@ -601,8 +532,8 @@ view device dictionaries model =
             UI.spinner
 
 
-viewGame : Device -> Words.Dictionaries -> GameModel -> Element Msg
-viewGame device dictionaries game =
+viewGame : Device -> Words.Dictionaries -> List String -> GameModel -> Element Msg
+viewGame device dictionaries activeDicts game =
     let
         onMobile =
             isOnMobile device
@@ -613,7 +544,7 @@ viewGame device dictionaries game =
                 , height fill
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                 ]
-                [ viewDictionaryModal onMobile dictionaries game
+                [ viewDictionaryModal onMobile dictionaries activeDicts game
                 , Help.view game.showHelp onMobile dictionaries OnToggleHelp NoOpString
                 ]
 
@@ -627,7 +558,7 @@ viewGame device dictionaries game =
     Common.viewContainer onMobile
         True
         { popup = modals
-        , topbar = viewTopBar onMobile dictionaries game
+        , topbar = viewTopBar onMobile dictionaries activeDicts game
         , wordlist =
             game.wordChain
                 |> List.indexedMap
@@ -662,8 +593,8 @@ viewGame device dictionaries game =
         }
 
 
-viewDictionaryModal : Bool -> Dictionaries -> GameModel -> Element Msg
-viewDictionaryModal onMobile dictionaries game =
+viewDictionaryModal : Bool -> Dictionaries -> List String -> GameModel -> Element Msg
+viewDictionaryModal onMobile dictionaries activeDicts game =
     let
         modalFn =
             if onMobile then
@@ -679,20 +610,20 @@ viewDictionaryModal onMobile dictionaries game =
             else
                 600
 
-        wordCount =
-            wordsInActiveDict game.dictsActive dictionaries
+        remaining =
+            wordsToGo dictionaries activeDicts game.wordsFound
     in
     if game.showDictionaryModal then
         modalFn OnToggleDictionaryModal
             [ row [ width <| minimum minSize fill ]
-                [ el [ alignLeft ] <| UI.heading "Dictionary"
+                [ el [ alignLeft ] <| UI.heading "Words:"
                 , el [ alignRight ] <|
                     UI.niceButton
                         (if game.unhideDictionary then
-                            "Hide all " ++ String.fromInt wordCount ++ " words"
+                            "Hide " ++ String.fromInt remaining ++ " words"
 
                          else
-                            "Show all " ++ String.fromInt wordCount ++ " words"
+                            "Show " ++ String.fromInt remaining ++ " hidden words"
                         )
                         OnToggleDictionaryShowAllWords
                         (Just <|
@@ -703,17 +634,15 @@ viewDictionaryModal onMobile dictionaries game =
                                 Icons.eye 20
                         )
                 ]
-            , Words.allDictNames dictionaries
-                |> List.map (\dictName -> UI.niceToggleButton dictName (OnToggleDictionaryActive dictName) Nothing <| dictActive game dictName)
-                |> row [ centerX, height shrink, paddingXY 10 0, spacing 20 ]
-            , Words.allWords game.dictsActive dictionaries
+            , dictionaries
+                |> Words.allWords activeDicts
                 |> List.map
                     (\word ->
                         Words.wordToStringParts word
                             |> (\( hanzi, pinyin, english ) ->
                                     let
                                         wordAlreadyDone =
-                                            List.member word game.wordsFound
+                                            List.member (wordHanzi word) game.wordsFound
 
                                         maybeHide str =
                                             if game.unhideDictionary || wordAlreadyDone then
@@ -751,8 +680,8 @@ viewDictionaryModal onMobile dictionaries game =
         none
 
 
-viewTopBar : Bool -> Words.Dictionaries -> GameModel -> Element Msg
-viewTopBar onMobile dictionaries game =
+viewTopBar : Bool -> Words.Dictionaries -> List String -> GameModel -> Element Msg
+viewTopBar onMobile dictionaries activeDicts game =
     let
         buttonFn =
             if onMobile then
@@ -808,20 +737,21 @@ viewTopBar onMobile dictionaries game =
                                         ++ String.fromInt u
             ]
           <|
-            Element.Lazy.lazy4 viewWordsToGo onMobile game.dictsActive dictionaries game.wordsFound
+            Element.Lazy.lazy4 viewWordsToGo onMobile dictionaries activeDicts game.wordsFound
         , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh iconSize)
-        , el [ alignRight ] <| buttonFn "Dictionaries" OnToggleDictionaryModal (Icons.translate iconSize)
+        , el [ alignRight ] <| buttonFn "Words" OnToggleDictionaryModal (Icons.translate iconSize)
         , buttonFn "Help" OnToggleHelp (Icons.questionmark iconSize)
         ]
 
 
-viewWordsToGo onMobile dictsActive dictionaries wordsFound =
+viewWordsToGo : Bool -> Words.Dictionaries -> List String -> List String -> Element Msg
+viewWordsToGo onMobile dictionaries activeDicts wordsFound =
     UI.niceTextWith [ Font.color UI.white ] <|
         let
             total =
-                wordsInActiveDict dictsActive dictionaries
+                wordsInActiveDict activeDicts dictionaries
         in
-        (String.fromInt <| total - wordsToGo dictsActive dictionaries wordsFound)
+        (String.fromInt <| total - wordsToGo dictionaries activeDicts wordsFound)
             ++ "/"
             ++ String.fromInt total
 
@@ -889,14 +819,16 @@ dictActive game dictName =
         |> Maybe.withDefault True
 
 
-wordsToGo dictsActive dictionaries wordsFound =
-    Words.allWords dictsActive dictionaries
-        |> List.filter (\w -> not <| List.member w wordsFound)
+wordsToGo : Words.Dictionaries -> List String -> List String -> Int
+wordsToGo dictionaries activeDicts wordsFound =
+    Words.allWords activeDicts dictionaries
+        |> List.filter (\w -> not <| List.member (wordHanzi w) wordsFound)
         |> List.length
 
 
-wordsInActiveDict dictsActive dictionaries =
-    Words.allWords dictsActive dictionaries
+wordsInActiveDict : List String -> Words.Dictionaries -> Int
+wordsInActiveDict activeDicts dictionaries =
+    Words.allWords activeDicts dictionaries
         |> List.length
 
 
@@ -915,8 +847,8 @@ processInput txt game =
             { game | currentInput = "", errorMsg = Just err }
 
 
-processRoundFinished : Backend.Uuid -> GameModel -> ( GameModel, Cmd Msg )
-processRoundFinished uuid game =
+processRoundFinished : Backend.Uuid -> List String -> GameModel -> ( GameModel, Cmd Msg )
+processRoundFinished uuid activeDicts game =
     let
         withFocusNextBtn ( m, cmd1 ) =
             ( m
@@ -945,7 +877,7 @@ processRoundFinished uuid game =
               }
             , Cmd.batch
                 [ Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
-                , roundFinishedPost uuid False game
+                , roundFinishedPost uuid False activeDicts game
                 ]
             )
 
@@ -960,11 +892,11 @@ processRoundFinished uuid game =
                 wordsFound =
                     List.foldl
                         (\{ word } acc ->
-                            if List.member word acc then
+                            if List.member (wordHanzi word) acc then
                                 acc
 
                             else
-                                word :: acc
+                                wordHanzi word :: acc
                         )
                         game.wordsFound
                         game.wordChain
@@ -990,16 +922,11 @@ processRoundFinished uuid game =
                         { name = "words-found"
                         , json =
                             Json.Encode.list
-                                (\word ->
-                                    word.characters
-                                        |> List.map .hanzi
-                                        |> String.join ""
-                                        |> Json.Encode.string
-                                )
+                                Json.Encode.string
                                 wordsFound
                         }
                     , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
-                    , roundFinishedPost uuid True game
+                    , roundFinishedPost uuid True activeDicts game
                     ]
                 )
 

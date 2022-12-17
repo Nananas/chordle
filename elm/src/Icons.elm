@@ -336,3 +336,49 @@ starFilled size =
     el [ width <| px size, height <| px size ] <|
         Element.html <|
             Svg.svg [ Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.fill "currentColor" ] [ Svg.path [ Svg.Attributes.fillRule "evenodd", Svg.Attributes.d "M10.788 3.21c.448-1.077 1.976-1.077 2.424 0l2.082 5.007 5.404.433c1.164.093 1.636 1.545.749 2.305l-4.117 3.527 1.257 5.273c.271 1.136-.964 2.033-1.96 1.425L12 18.354 7.373 21.18c-.996.608-2.231-.29-1.96-1.425l1.257-5.273-4.117-3.527c-.887-.76-.415-2.212.749-2.305l5.404-.433 2.082-5.006z", Svg.Attributes.clipRule "evenodd" ] [] ]
+
+
+arrowRightUp size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M4.5 19.5l15-15m0 0H8.25m11.25 0v11.25" ] [] ]
+
+
+check size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M4.5 12.75l6 6 9-13.5" ] [] ]
+
+
+plus size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M12 4.5v15m7.5-7.5h-15" ] [] ]
+
+
+minus size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M19.5 12h-15" ] [] ]
+
+
+xmark size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg [ Svg.Attributes.fill "none", Svg.Attributes.viewBox "0 0 24 24", Svg.Attributes.strokeWidth "1.5", Svg.Attributes.stroke "currentColor" ] [ Svg.path [ Svg.Attributes.strokeLinecap "round", Svg.Attributes.strokeLinejoin "round", Svg.Attributes.d "M6 18L18 6M6 6l12 12" ] [] ]
+
+
+dot size =
+    el [ width <| px size, height <| px size ] <|
+        Element.html <|
+            Svg.svg
+                [ Svg.Attributes.viewBox "0 0 24 24"
+                , Svg.Attributes.fill "currentColor"
+                ]
+                [ Svg.path
+                    [ Svg.Attributes.fillRule "evenodd"
+                    , Svg.Attributes.d "M2.25 12c0-5.385 4.365-9.75 9.75-9.75s9.75 4.365 9.75 9.75-4.365 9.75-9.75 9.75S2.25 17.385 2.25 12zm6-2.438c0-.724.588-1.312"
+                    , Svg.Attributes.clipRule "evenodd"
+                    ]
+                    []
+                ]

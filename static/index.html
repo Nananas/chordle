@@ -42,6 +42,32 @@
 				height: 40px;
 				width: 40px;
 			}
+
+			@keyframes flashyColorPalette {
+				0% {
+					color: #ee6055;
+				}
+				25% {
+					color: #60d394;
+				}
+				50% {
+					color: #aaf683;
+				}
+				75% {
+					color: #ffd97d;
+				}
+				100% {
+					color: #ff9b85;
+				}
+			}
+
+			.flashy-colors {
+				animation-name: flashyColorPalette;
+				animation-duration: 10s;
+				animation-iteration-count: infinite;
+				animation-direction: alternate;
+				animation-play-state: running;
+			}
 		</style>
 		<!-- Global site tag (gtag.js) - Google Analytics -->
 		<script async src="https://www.googletagmanager.com/gtag/js?id=G-ZC3JCRSLHV"></script>

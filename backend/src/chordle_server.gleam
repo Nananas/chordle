@@ -1,18 +1,19 @@
 import gleam/bit_builder
 import gleam/bit_string
-import gleam/erlang/process.{Subject}
+import gleam/erlang/process
 import gleam/http/request.{Request}
 import gleam/http/response
 import gleam/http
 import gleam/string
-import mist
 import gleam/result
 import gleam/io
+import gleam/map
+import gleam/list
+import mist
 import mist/file as mfile
 import gleam/int
 import mist/handler.{HandlerResponse, Response}
 import mist/http.{BitBuilderBody, Body, FileBody} as mhttp
-import gleam/option.{None, Option, Some}
 import utils.{map_error_string}
 import db
 import api
@@ -50,12 +51,6 @@ fn parse_page_event(req, next) {
 
 fn error_response(txt) {
   response.new(400)
-  |> response.set_body(BitBuilderBody(bit_builder.from_string(txt)))
-  |> Response
-}
-
-fn string_response(txt) {
-  response.new(200)
   |> response.set_body(BitBuilderBody(bit_builder.from_string(txt)))
   |> Response
 }
@@ -101,14 +96,27 @@ pub fn serve_file(filename: String) -> HandlerResponse {
 
   let size = mfile.size(file_path)
   assert Ok(fd) = mfile.open(file_path)
+
+  let mime_types =
+    [
+      #("json", "application/json"),
+      #("js", "text/javascript"),
+      #("html", "text/html"),
+    ]
+    |> map.from_list
+
+  let mime =
+    string.split(filename, ".")
+    |> list.last
+    |> io.debug
+    |> result.then(fn(ext) {
+      mime_types
+      |> map.get(ext)
+    })
+    |> result.unwrap(or: "")
+
   response.new(200)
-  |> response.set_header(
-    "Content-Type",
-    case string.ends_with(filename, ".json") {
-      True -> "application/json"
-      False -> ""
-    },
-  )
+  |> response.set_header("Content-Type", mime)
   |> response.set_body(FileBody(fd, int.to_string(size), 0, size))
   |> Response
 }

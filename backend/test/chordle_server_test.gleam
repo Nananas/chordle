@@ -4,7 +4,6 @@ import gleam/result
 import gleam/json
 import db
 import api
-import gleam/io
 
 pub fn main() {
   gleeunit.main()
@@ -16,6 +15,7 @@ pub fn db_page_event_insert_test() {
       page: "db-test",
       uuid: "<test-uuid>",
       event: api.Daily(event: api.DailyEvent(
+        dicts_active: ["dict1", "dict2"],
         progress: "test",
         result: "test",
         attempts: -1,
@@ -30,14 +30,13 @@ pub fn db_page_event_insert_test() {
   db.cleanup(dbc)
 }
 
-pub fn api_decode_page_event_test() {
+pub fn api_decode_daily_page_event_test() {
   let str =
-    "{\"page\":\"daily\",\"uuid\":\"<test-uuid>\",\"event\":{\"progress\":\"First\",\"result\":\"Success\",\"attempts\":8,\"mistakes\":3,\"rata\":123456}}"
+    "{\"page\":\"daily\",\"uuid\":\"<test-uuid>\",\"event\":{\"dicts-active\":[\"dict1\",\"dict2\"],\"progress\":\"First\",\"result\":\"Success\",\"attempts\":8,\"mistakes\":3,\"rata\":123456}}"
 
   str
   |> api.decode_page_event
   |> result.map(api.page_event_to_json)
   |> result.map(json.to_string)
-  |> io.debug
   |> should.equal(Ok(str))
 }

@@ -138,8 +138,8 @@ initGame wordChain today progress =
     )
 
 
-gameOver : Backend.Uuid -> DayProgress -> GameModel -> ( Model, Cmd Msg )
-gameOver uuid dayProgress game =
+gameOver : Backend.Uuid -> List String -> DayProgress -> GameModel -> ( Model, Cmd Msg )
+gameOver uuid activeDicts dayProgress game =
     let
         state =
             if Dict.member (Date.toRataDie game.today) game.progress then
@@ -168,6 +168,7 @@ gameOver uuid dayProgress game =
         [ updateProgressInStorage game.today dayProgress game.progress
         , Backend.postDaily
             uuid
+            activeDicts
             { state = state
             , attempts = List.length score.attempts
             , mistakes = score.mistakes
@@ -261,8 +262,8 @@ updateProgressInStorage today dayProgress progress =
         }
 
 
-update : Backend.Uuid -> Words.Dictionaries -> Msg -> Model -> ( Model, Cmd Msg )
-update uuid dictionaries msg model =
+update : Backend.Uuid -> Words.Dictionaries -> List String -> Msg -> Model -> ( Model, Cmd Msg )
+update uuid dictionaries activeDicts msg model =
     case ( model, msg ) of
         ( LoadingSeed, OnSeedDateLoaded ( seedInt, today ) ) ->
             let
@@ -274,7 +275,7 @@ update uuid dictionaries msg model =
         ( LoadingStorage seed today, OnStorageLoaded storage ) ->
             let
                 dictionary =
-                    allWords Dict.empty dictionaries
+                    allWords activeDicts dictionaries
 
                 wordsWithoutConnection =
                     singleWordsList dictionary
@@ -331,10 +332,10 @@ update uuid dictionaries msg model =
                             |> String.fromCodePoints
                 in
                 processInput txt game
-                    |> processRoundFinished uuid
+                    |> processRoundFinished uuid activeDicts
 
         ( Playing game, OnGiveUpClicked ) ->
-            gameOver uuid GiveUp game
+            gameOver uuid activeDicts GiveUp game
 
         ( Playing game, OnMouseEnterCharacter id ) ->
             ( Playing { game | showPopupForCharacter = Just id }, Cmd.none )
@@ -406,11 +407,11 @@ processInput txt game =
             { game | currentInput = "", errorMsg = Just err }
 
 
-processRoundFinished : Backend.Uuid -> GameModel -> ( Model, Cmd Msg )
-processRoundFinished uuid game =
+processRoundFinished : Backend.Uuid -> List String -> GameModel -> ( Model, Cmd Msg )
+processRoundFinished uuid activeDicts game =
     if List.length (WordChain.wrongAnswersOf game.wordChain game.answers) > 5 then
         -- Too many wrong answers
-        gameOver uuid Failed game
+        gameOver uuid activeDicts Failed game
 
     else
         let
@@ -422,7 +423,7 @@ processRoundFinished uuid game =
         in
         if finished then
             -- word round finished, we found all correctly
-            gameOver uuid Succeeded game
+            gameOver uuid activeDicts Succeeded game
 
         else
             ( Playing game, Cmd.none )
@@ -564,6 +565,35 @@ viewHistoryModal onMobile game =
                     , givenups = 0
                     }
 
+        monthlyStats =
+            game.progress
+                |> Dict.toList
+                |> List.foldl
+                    (\( r, dp ) acc ->
+                        if
+                            month
+                                == (Date.fromRataDie r |> Date.monthNumber)
+                                && Date.year game.historyShownDate
+                                == (Date.fromRataDie r |> Date.year)
+                        then
+                            case dp of
+                                Succeeded ->
+                                    { acc | successes = acc.successes + 1 }
+
+                                Failed ->
+                                    { acc | failures = acc.failures + 1 }
+
+                                GiveUp ->
+                                    { acc | givenups = acc.givenups + 1 }
+
+                        else
+                            acc
+                    )
+                    { successes = 0
+                    , failures = 0
+                    , givenups = 0
+                    }
+
         total =
             Dict.size game.progress
                 |> toFloat
@@ -577,21 +607,31 @@ viewHistoryModal onMobile game =
     in
     modalFn
         OnClickedToggleShowHistory
-        [ el [ alignTop ] <| UI.heading "History"
-        , column [ width fill, spacing 10 ]
+        [ el [ alignTop, centerX ] <| UI.heading "History"
+        , column [ centerX, spacing 10 ]
             [ row [ width fill ]
                 [ el [] <| UI.niceText (monthName ++ " " ++ yearName)
                 , el [ alignRight ] <| UI.simpleIconButton (Icons.chevronLeft 20) (OnClickedHistoryMonthChange -1) "Go back one month"
                 , UI.simpleIconButton (Icons.calendar 20) OnClickedHistoryGotoToday "Go to Today"
                 , UI.simpleIconButton (Icons.chevronRight 20) (OnClickedHistoryMonthChange 1) "Go forward one month"
                 ]
-            , el [ centerX, centerY ] <| recurse [] monthDaysOffsetted
+            , el [ centerX, centerY, height (px (7 * squareSize)) ] <| recurse [] monthDaysOffsetted
             ]
-        , column [ spacing 10, Element.Font.color UI.accentColor ]
-            [ el [ alignLeft ] <| UI.niceText "Summary:"
-            , text <| "Correct: " ++ (String.fromInt <| round <| stats.successes / total * 100) ++ "%"
-            , text <| "Wrong: " ++ (String.fromInt <| round <| stats.failures / total * 100) ++ "%"
-            , text <| "Given up: " ++ (String.fromInt <| round <| stats.givenups / total * 100) ++ "%"
+        , el [ width fill, Element.Font.color UI.accentColorHighlight, UI.bottomBorder 2, paddingXY 50 0 ] none
+        , row [ centerX, spacing 20 ]
+            [ column [ spacing 10, Element.Font.color UI.accentColor ]
+                [ el [ alignLeft ] <| UI.niceText "Monthly Summary"
+                , text <| "Correct: " ++ (String.fromInt <| round <| monthlyStats.successes / total * 100) ++ "%"
+                , text <| "Wrong: " ++ (String.fromInt <| round <| monthlyStats.failures / total * 100) ++ "%"
+                , text <| "Given up: " ++ (String.fromInt <| round <| monthlyStats.givenups / total * 100) ++ "%"
+                ]
+            , el [ width (px 1), height fill, Element.Border.widthEach { bottom = 0, left = 0, right = 2, top = 0 }, Element.Font.color UI.accentColorHighlight ] none
+            , column [ spacing 10, Element.Font.color UI.accentColor ]
+                [ el [ alignLeft ] <| UI.niceText "Total Summary"
+                , text <| "Correct: " ++ (String.fromInt <| round <| stats.successes / total * 100) ++ "%"
+                , text <| "Wrong: " ++ (String.fromInt <| round <| stats.failures / total * 100) ++ "%"
+                , text <| "Given up: " ++ (String.fromInt <| round <| stats.givenups / total * 100) ++ "%"
+                ]
             ]
         ]
 

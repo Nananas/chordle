@@ -1,7 +1,5 @@
-import gleam/io
 import gleam/dynamic
 import gleam/json
-import gleam/result
 import utils
 
 pub type PageEvent {
@@ -16,6 +14,7 @@ pub type Event {
 
 pub type DailyEvent {
   DailyEvent(
+    dicts_active: List(String),
     progress: String,
     result: String,
     attempts: Int,
@@ -62,6 +61,7 @@ pub fn event_to_json(event: Event) -> json.Json {
 
 pub fn daily_event_to_json(daily_event: DailyEvent) -> json.Json {
   json.object([
+    #("dicts-active", json.array(daily_event.dicts_active, json.string)),
     #("progress", json.string(daily_event.progress)),
     #("result", json.string(daily_event.result)),
     #("attempts", json.int(daily_event.attempts)),
@@ -94,8 +94,9 @@ pub fn training_round_event_to_json(
 
 pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
   let daily_event_decoder =
-    dynamic.decode5(
-      fn(a, b, c, d, e) { Daily(event: DailyEvent(a, b, c, d, e)) },
+    dynamic.decode6(
+      fn(a, b, c, d, e, f) { Daily(event: DailyEvent(a, b, c, d, e, f)) },
+      dynamic.field("dicts-active", of: dynamic.list(dynamic.string)),
       dynamic.field("progress", of: dynamic.string),
       dynamic.field("result", of: dynamic.string),
       dynamic.field("attempts", of: dynamic.int),
@@ -137,5 +138,5 @@ pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
     dynamic.field("event", of: event_decoder),
   )
   |> json.decode(from: str)
-  |> utils.map_error_string("parse error")
+  |> utils.map_json_error_to_string
 }

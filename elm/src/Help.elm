@@ -141,8 +141,6 @@ viewDesktop showHelp dictionaries toggleMsg noOpMsg =
                         , viewExampleHanziFinishedRound "吧" Fifth False
                         ]
                     ]
-                , column [ paddingXY 0 10 ]
-                    [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty dictionaries) ++ " words!" ]
                 ]
             , UI.viewFooter
             ]
@@ -266,8 +264,6 @@ viewMobile showHelp dictionaries toggleMsg noOpMsg =
                     , viewExampleHanziFinishedRound "吧" Fifth False
                     ]
                 ]
-            , column [ paddingXY 0 10 ]
-                [ text <| "The dictionary currently contains a total of " ++ (String.fromInt <| List.length <| allWords Dict.empty dictionaries) ++ " words" ]
             , UI.viewFooter
             ]
 

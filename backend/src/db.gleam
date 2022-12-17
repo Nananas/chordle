@@ -1,8 +1,7 @@
 import gleam/pgo
-import gleam/option.{None, Some}
+import gleam/option.{Some}
 import gleam/io
 import gleam/dynamic
-import gleam/result
 import gleam/list
 import gleam/int
 import gleam/json

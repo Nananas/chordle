@@ -105,7 +105,8 @@ niceButton text onClick mIcon =
 
 niceToggleButton text onClick mIcon state =
     niceButtonWith
-        (mouseOver [ Element.Background.color accentColorHighlight ]
+        (mouseOver
+            [ Element.Background.color accentColorHighlight ]
             :: (if state == True then
                     []
 
@@ -177,8 +178,9 @@ niceIconButton icon onClick tooltip =
         , width shrink
         , height <| px 40
         , width <| px 40
-        , Element.Border.rounded 10
+        , Element.Border.rounded 20
         , htmlAttribute <| Html.Attributes.title tooltip
+        , floating
         ]
         { onPress = Just onClick
         , label =
@@ -316,6 +318,7 @@ modal toggleMsg content =
         el [ padding 50, width fill, height fill, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ] <|
             column
                 [ centerX
+                , width <| minimum 500 shrink
                 , centerY
                 , height fill
                 , padding 40

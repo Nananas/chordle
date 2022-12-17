@@ -20,8 +20,8 @@ type alias Uuid =
     Maybe String
 
 
-postDaily : Uuid -> { state : GameOverState, attempts : Int, mistakes : Int, rata : Int } -> Cmd Msg
-postDaily uuid { state, attempts, mistakes, rata } =
+postDaily : Uuid -> List String -> { state : GameOverState, attempts : Int, mistakes : Int, rata : Int } -> Cmd Msg
+postDaily uuid activeDicts { state, attempts, mistakes, rata } =
     let
         resultToString r =
             case r of
@@ -48,7 +48,8 @@ postDaily uuid { state, attempts, mistakes, rata } =
                 , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
                 , ( "event"
                   , Json.Encode.object
-                        [ ( "progress", Json.Encode.string progress )
+                        [ ( "dicts-active", Json.Encode.list Json.Encode.string activeDicts )
+                        , ( "progress", Json.Encode.string progress )
                         , ( "result", Json.Encode.string result )
                         , ( "attempts", Json.Encode.int attempts )
                         , ( "mistakes", Json.Encode.int mistakes )
@@ -66,19 +67,13 @@ postDaily uuid { state, attempts, mistakes, rata } =
 
 postTrainingRoundEnd uuid { dictsActive, nrWordsFound, wasSuccess, mistakes } =
     let
-        activeDicts : List String
-        activeDicts =
-            dictsActive
-                |> Dict.filter (\k v -> v)
-                |> Dict.keys
-
         body =
             Json.Encode.object
                 [ ( "page", Json.Encode.string "training" )
                 , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
                 , ( "event"
                   , Json.Encode.object
-                        [ ( "dicts-active", Json.Encode.list Json.Encode.string activeDicts )
+                        [ ( "dicts-active", Json.Encode.list Json.Encode.string dictsActive )
                         , ( "nr-words-found", Json.Encode.int nrWordsFound )
                         , ( "success", Json.Encode.bool wasSuccess )
                         , ( "mistakes", Json.Encode.int mistakes )
@@ -93,14 +88,8 @@ postTrainingRoundEnd uuid { dictsActive, nrWordsFound, wasSuccess, mistakes } =
         }
 
 
-postTrainingFinished uuid { dictsActive, gameStats } =
+postTrainingFinished uuid activeDicts { gameStats } =
     let
-        activeDicts : List String
-        activeDicts =
-            dictsActive
-                |> Dict.filter (\k v -> v)
-                |> Dict.keys
-
         body =
             Json.Encode.object
                 [ ( "page", Json.Encode.string "training" )
