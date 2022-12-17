@@ -107,30 +107,6 @@
 				}
 			}
 
-			notifications = {	
-				initPorts: function(app) {
-					app.ports.requestPermissions.subscribe(function() {
-						if (!("Notification" in window)) {
-							app.ports.permissionChanged.send("not supported");
-							return;
-						} else if (Notification.permission === "granted") {
-							app.ports.permissionChanged.send("granted");
-						} else if (Notification.permission !== "denied") {
-							Notification.requestPermission()
-								.then(function (permission) {
-								        if (permission === "granted") {
-										app.ports.permissionChanged.send("granted");
-									}
-								});
-						}
-					});
-
-					app.ports.showNotification.subscribe(function(content) {
-						var notification = new Notification(content);
-					});
-				}
-			}
-
 			clipboard = {
 				initPorts: function(app) {
 					app.ports.writeToClipboard.subscribe(function(towrite) {

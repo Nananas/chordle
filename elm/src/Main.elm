@@ -22,7 +22,6 @@ import Json.Decode
 import Json.Encode
 import List.Extra as List
 import MobileUI
-import Notifications
 import Process
 import Random
 import Random.List
