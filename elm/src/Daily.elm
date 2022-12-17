@@ -598,6 +598,9 @@ viewHistoryModal onMobile game =
             Dict.size game.progress
                 |> toFloat
 
+        monthTotal =
+            monthlyStats.successes + monthlyStats.failures + monthlyStats.givenups
+
         modalFn =
             if onMobile then
                 MobileUI.modal
@@ -621,9 +624,9 @@ viewHistoryModal onMobile game =
         , row [ centerX, spacing 20 ]
             [ column [ spacing 10, Element.Font.color UI.accentColor ]
                 [ el [ alignLeft ] <| UI.niceText "Monthly Summary"
-                , text <| "Correct: " ++ (String.fromInt <| round <| monthlyStats.successes / total * 100) ++ "%"
-                , text <| "Wrong: " ++ (String.fromInt <| round <| monthlyStats.failures / total * 100) ++ "%"
-                , text <| "Given up: " ++ (String.fromInt <| round <| monthlyStats.givenups / total * 100) ++ "%"
+                , text <| "Correct: " ++ (String.fromInt <| round <| monthlyStats.successes / monthTotal * 100) ++ "%"
+                , text <| "Wrong: " ++ (String.fromInt <| round <| monthlyStats.failures / monthTotal * 100) ++ "%"
+                , text <| "Given up: " ++ (String.fromInt <| round <| monthlyStats.givenups / monthTotal * 100) ++ "%"
                 ]
             , el [ width (px 1), height fill, Element.Border.widthEach { bottom = 0, left = 0, right = 2, top = 0 }, Element.Font.color UI.accentColorHighlight ] none
             , column [ spacing 10, Element.Font.color UI.accentColor ]
