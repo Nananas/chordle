@@ -529,12 +529,15 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
                         )
                     ]
 
+        chevronAttr =
+            [ height (px 40), UI.rounded 20, width (px 40) ]
+
         noChevronOr chevron show =
             if show then
                 chevron
 
             else
-                el [ width (px 70) ] none
+                el [ width (px 40) ] none
 
         dot colored =
             el
@@ -565,9 +568,9 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
 
           else
             UI.niceText <| "You have added " ++ String.fromInt activeDictsCount ++ " of " ++ (String.fromInt <| Dict.size dicts) ++ " dictionaries."
-        , row [ centerX ]
+        , row [ centerX, spacing 10 ]
             [ (showingCurrentDictionaryIndex > 0)
-                |> noChevronOr (UI.simpleIconButton (Icons.chevronLeft 30) (SetDictionaryModalShowIndex (showingCurrentDictionaryIndex - 1)) "")
+                |> noChevronOr (UI.niceIconButtonWith chevronAttr (Icons.chevronLeft 20) (SetDictionaryModalShowIndex (showingCurrentDictionaryIndex - 1)) "")
             , dicts
                 |> Dict.toList
                 |> List.getAt showingCurrentDictionaryIndex
@@ -592,7 +595,7 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
                     )
                 |> Maybe.withDefault none
             , (showingCurrentDictionaryIndex < Dict.size dicts - 1)
-                |> noChevronOr (UI.simpleIconButton (Icons.chevronRight 30) (SetDictionaryModalShowIndex (showingCurrentDictionaryIndex + 1)) "")
+                |> noChevronOr (UI.niceIconButtonWith chevronAttr (Icons.chevronRight 20) (SetDictionaryModalShowIndex (showingCurrentDictionaryIndex + 1)) "")
             ]
         , row [ centerX, spacing 10 ]
             (List.range 0 (Dict.size dicts - 1)

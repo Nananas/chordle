@@ -155,14 +155,20 @@ niceButtonWith attr text onClick mIcon =
         }
 
 
-simpleIconButton icon onClick tooltip =
+simpleIconButton =
+    simpleIconButtonWith []
+
+
+simpleIconButtonWith attr icon onClick tooltip =
     Element.Input.button
-        [ mouseOver [ Element.Font.color accentColorHighlight ]
-        , Element.Font.color accentColor
-        , width shrink
-        , height <| px 40
-        , htmlAttribute <| Html.Attributes.title tooltip
-        ]
+        ([ mouseOver [ Element.Font.color accentColorHighlight ]
+         , Element.Font.color accentColor
+         , width shrink
+         , height <| px 40
+         , htmlAttribute <| Html.Attributes.title tooltip
+         ]
+            ++ attr
+        )
         { onPress = Just onClick
         , label =
             el [ centerY, centerX, paddingXY 20 0, spacing 20 ]
@@ -170,18 +176,24 @@ simpleIconButton icon onClick tooltip =
         }
 
 
-niceIconButton icon onClick tooltip =
+niceIconButton =
+    niceIconButtonWith []
+
+
+niceIconButtonWith attr icon onClick tooltip =
     Element.Input.button
-        [ mouseOver [ Element.Font.color accentColorHighlight ]
-        , Element.Font.color white
-        , Element.Background.color accentColor
-        , width shrink
-        , height <| px 40
-        , width <| px 40
-        , Element.Border.rounded 20
-        , htmlAttribute <| Html.Attributes.title tooltip
-        , floating
-        ]
+        ([ mouseOver [ Element.Font.color accentColorHighlight ]
+         , Element.Font.color white
+         , Element.Background.color accentColor
+         , width shrink
+         , height <| px 40
+         , width <| px 40
+         , Element.Border.rounded 20
+         , htmlAttribute <| Html.Attributes.title tooltip
+         , floating
+         ]
+            ++ attr
+        )
         { onPress = Just onClick
         , label =
             el [ centerY, centerX, paddingXY 20 0, spacing 20 ]
