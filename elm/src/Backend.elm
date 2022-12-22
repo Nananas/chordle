@@ -46,7 +46,7 @@ postDaily uuid activeDicts { state, attempts, mistakes, rata } =
             Json.Encode.object
                 [ ( "page", Json.Encode.string "daily" )
                 , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
-                , ( "event"
+                , ( "details"
                   , Json.Encode.object
                         [ ( "dicts-active", Json.Encode.list Json.Encode.string activeDicts )
                         , ( "progress", Json.Encode.string progress )
@@ -71,7 +71,7 @@ postTrainingRoundEnd uuid { dictsActive, nrWordsFound, wasSuccess, mistakes } =
             Json.Encode.object
                 [ ( "page", Json.Encode.string "training" )
                 , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
-                , ( "event"
+                , ( "details"
                   , Json.Encode.object
                         [ ( "dicts-active", Json.Encode.list Json.Encode.string dictsActive )
                         , ( "nr-words-found", Json.Encode.int nrWordsFound )
@@ -94,7 +94,7 @@ postTrainingFinished uuid activeDicts { gameStats } =
             Json.Encode.object
                 [ ( "page", Json.Encode.string "training" )
                 , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
-                , ( "event"
+                , ( "details"
                   , Json.Encode.object
                         [ ( "dicts-active", Json.Encode.list Json.Encode.string activeDicts )
                         , ( "attempts", Json.Encode.int gameStats.attempts )
