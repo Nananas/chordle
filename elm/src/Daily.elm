@@ -596,10 +596,14 @@ viewHistoryModal onMobile game =
 
         total =
             Dict.size game.progress
+                |> max 1
                 |> toFloat
 
         monthTotal =
-            monthlyStats.successes + monthlyStats.failures + monthlyStats.givenups
+            monthlyStats.successes
+                + monthlyStats.failures
+                + monthlyStats.givenups
+                |> max 1
 
         modalFn =
             if onMobile then
