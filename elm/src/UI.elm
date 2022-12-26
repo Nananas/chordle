@@ -99,6 +99,14 @@ uppercase =
     Element.Font.variant Element.Font.slashedZero
 
 
+columnOrRow col =
+    if col then
+        column
+
+    else
+        row
+
+
 niceButton text onClick mIcon =
     niceButtonWith [] text onClick mIcon
 
@@ -245,15 +253,21 @@ niceTextWith attr str =
         Element.text str
 
 
-heading str =
+heading =
+    headingWith []
+
+
+headingWith attr str =
     el
-        [ Element.Font.color accentColor
-        , centerX
-        , centerY
-        , Element.Font.bold
-        , Element.Font.center
-        , Element.Font.size 24
-        ]
+        ([ Element.Font.color accentColor
+         , centerX
+         , centerY
+         , Element.Font.bold
+         , Element.Font.center
+         , Element.Font.size 24
+         ]
+            ++ attr
+        )
     <|
         Element.text str
 

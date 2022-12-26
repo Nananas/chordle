@@ -351,6 +351,17 @@ allDictNames dictionaries =
         |> Dict.keys
 
 
+type alias WordsFile =
+    { structure : List ( String, List ( String, String ) )
+    , parts : Dictionaries
+    }
+
+
+
+-- format:
+--  [["NPCR CLT year 1", [["Book", "clt1"], ["Extra", "extra-clt1"]]] ...
+
+
 wordsFileDecoder =
     let
         wordDecoder =
@@ -365,12 +376,26 @@ wordsFileDecoder =
                 )
                 (Json.Decode.list Json.Decode.string)
 
-        dictDecoder =
-            Json.Decode.dict (Json.Decode.list wordDecoder)
+        partsDecoder =
+            Json.Decode.list wordDecoder
+
+        partNameDecoder =
+            Json.Decode.map2 Tuple.pair
+                (Json.Decode.index 0 Json.Decode.string)
+                (Json.Decode.index 1 Json.Decode.string)
+
+        subStructureDecoder =
+            Json.Decode.map2 Tuple.pair
+                (Json.Decode.index 0 Json.Decode.string)
+                (Json.Decode.index 1 (Json.Decode.list partNameDecoder))
+
+        structureDecoder =
+            Json.Decode.list subStructureDecoder
     in
-    Json.Decode.field "dictionaries" dictDecoder
+    Json.Decode.map2 WordsFile
+        (Json.Decode.field "structure" structureDecoder)
+        (Json.Decode.field "parts" (Json.Decode.dict partsDecoder))
 
 
 wordsFromJson str =
     Json.Decode.decodeString wordsFileDecoder str
-        |> Result.withDefault Dict.empty

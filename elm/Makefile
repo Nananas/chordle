@@ -16,7 +16,7 @@ archive:
 	tar -C ../static -czf chordle.tar.gz main.js \
 	index.html \
 	favicon.ico \
-	words.json
+	dictionaries.json
 
 test:
 	elm-test

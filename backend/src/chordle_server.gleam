@@ -72,6 +72,7 @@ pub fn main() {
         case req.method, request.path_segments(req) {
           http.Get, ["main.js"] -> serve_file("main.js")
           http.Get, ["words.json"] -> serve_file("words.json")
+          http.Get, ["dictionaries.json"] -> serve_file("dictionaries.json")
           http.Get, ["favicon.ico"] -> serve_file("favicon.ico")
           http.Get, [] -> serve_file("index.html")
           http.Post, ["event"] -> {

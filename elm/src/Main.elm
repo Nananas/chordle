@@ -75,7 +75,7 @@ type alias Model =
     { device : Device
     , state : State
     , uuid : Maybe String
-    , dicts : Words.Dictionaries
+    , wordsFile : Words.WordsFile
     , activeDicts : List String
     , showDictionaryModal : Bool
     , showingCurrentDictionaryIndex : Int
@@ -102,7 +102,7 @@ init _ =
     ( { state = LoadingId
       , device = desktop
       , uuid = Nothing
-      , dicts = Dict.empty
+      , wordsFile = Words.WordsFile [] Dict.empty
       , activeDicts = []
       , showDictionaryModal = False
       , showingCurrentDictionaryIndex = 0
@@ -154,7 +154,7 @@ update msg model =
                         ( { model
                             | activeDicts =
                                 activeDicts
-                                    |> List.filter (\d -> Dict.member d model.dicts)
+                                    |> List.filter (\d -> Dict.member d model.wordsFile.parts)
                             , state = ChooseGameType
                           }
                         , Cmd.none
@@ -171,9 +171,9 @@ update msg model =
             else
                 ( model, Cmd.none )
 
-        ( OnGetWords (Ok dictionaries), LoadingWords ) ->
+        ( OnGetWords (Ok wordsFile), LoadingWords ) ->
             ( { model
-                | dicts = dictionaries
+                | wordsFile = wordsFile
                 , state = LoadingActiveDicts
               }
             , Storage.loadStorage "active-dicts"
@@ -252,7 +252,7 @@ update msg model =
         ( SetDictionaryModalShowIndex newIndex, ChooseGameType ) ->
             ( { model
                 | showingCurrentDictionaryIndex =
-                    max 0 (min newIndex (Dict.size model.dicts - 1))
+                    max 0 (min newIndex (List.length model.wordsFile.structure - 1))
               }
             , Cmd.none
             )
@@ -277,7 +277,7 @@ update msg model =
             ( { model | state = ChooseGameType }, Cmd.none )
 
         ( TrainingMsg trainingMsg, Training trainingModel ) ->
-            Training.update model.uuid model.dicts model.activeDicts trainingMsg trainingModel
+            Training.update model.uuid model.wordsFile.parts model.activeDicts trainingMsg trainingModel
                 |> liftBoth Training TrainingMsg
                 |> setStateIn model
 
@@ -288,7 +288,7 @@ update msg model =
             ( { model | state = ChooseGameType }, Cmd.none )
 
         ( DailyMsg dailyMsg, Daily dailyModel ) ->
-            Daily.update model.uuid model.dicts model.activeDicts dailyMsg dailyModel
+            Daily.update model.uuid model.wordsFile.parts model.activeDicts dailyMsg dailyModel
                 |> liftBoth Daily DailyMsg
                 |> setStateIn model
 
@@ -339,14 +339,14 @@ view model =
     layoutWith { options = [ focusStyle { backgroundColor = Nothing, borderColor = Nothing, shadow = Nothing } ] } [ width fill, height fill ] <|
         case model.state of
             ChooseGameType ->
-                viewChooseGameType onMobile model.dicts model.activeDicts model.showDictionaryModal model.showingCurrentDictionaryIndex
+                viewChooseGameType onMobile model.wordsFile model.activeDicts model.showDictionaryModal model.showingCurrentDictionaryIndex
 
             Training trainingModel ->
-                Training.view model.device model.dicts model.activeDicts trainingModel
+                Training.view model.device model.wordsFile.parts model.activeDicts trainingModel
                     |> Element.map TrainingMsg
 
             Daily dailyModel ->
-                Daily.view model.device model.dicts dailyModel
+                Daily.view model.device dailyModel
                     |> Element.map DailyMsg
 
             Error msg ->
@@ -361,11 +361,12 @@ view model =
                 UI.spinner
 
 
-viewChooseGameType onMobile dicts activeDicts showModal showingCurrentDictionaryIndex =
+viewChooseGameType : Bool -> Words.WordsFile -> List String -> Bool -> Int -> Element Msg
+viewChooseGameType onMobile wordsFile activeDicts showModal showingCurrentDictionaryIndex =
     let
         modal =
             if showModal then
-                viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex
+                viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
 
             else
                 none
@@ -385,7 +386,7 @@ viewChooseGameType onMobile dicts activeDicts showModal showingCurrentDictionary
                 msg
     in
     column [ width fill, height fill, inFront modal ]
-        [ viewTopBar onMobile dicts activeDicts showModal
+        [ viewTopBar onMobile wordsFile.parts activeDicts showModal
         , el [ width fill, height fill ] <|
             column [ centerX, centerY, spacing 100 ]
                 [ column [ centerX, spacing 20 ]
@@ -456,7 +457,8 @@ viewTopBar onMobile dictionaries activeDicts showModal =
         ]
 
 
-viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
+viewDictionaryModal : Bool -> Words.WordsFile -> List String -> Int -> Element Msg
+viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex =
     let
         modalFn =
             if onMobile then
@@ -473,7 +475,7 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
                 row
 
         totalWordCount =
-            dicts
+            wordsFile.parts
                 |> Dict.foldl
                     (\k v acc ->
                         if List.member k activeDicts then
@@ -487,7 +489,15 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
         activeDictsCount =
             List.length activeDicts
 
-        singleDictionaryCard dictName enabled words =
+        singleDictionaryCard subtitle dictName enabled words onAddMsg =
+            let
+                icon =
+                    if enabled then
+                        Icons.xmark 20
+
+                    else
+                        Icons.plus 20
+            in
             el
                 [ width
                     (px <|
@@ -497,10 +507,18 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
                         else
                             400
                     )
-                , height (px 300)
+                , height <|
+                    if onMobile then
+                        px 200
+
+                    else
+                        px 300
                 , UI.floating
                 , UI.rounded 10
                 , Background.color UI.lightColor
+                , inFront <|
+                    el [ alignRight, alignBottom, padding 10 ] <|
+                        UI.niceIconButtonWith [ UI.floatingHigh ] icon onAddMsg "Add"
                 ]
             <|
                 column [ width fill, height fill, padding 20, spacing 10 ]
@@ -509,11 +527,20 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
                         , width fill
                         , Font.color UI.accentColor
                         ]
-                        [ el [ alignLeft ] <| UI.heading dictName
+                        [ el [ alignLeft ] <|
+                            UI.headingWith
+                                [ Font.color <|
+                                    if enabled then
+                                        UI.accentColor
+
+                                    else
+                                        UI.accentColorHighlight
+                                ]
+                                subtitle
                         , el [ alignRight, Font.color UI.accentColor ] <| text <| String.fromInt (List.length words) ++ " words"
                         ]
                     , el [ scrollbarY, height fill, width fill, padding 5 ] <|
-                        (dicts
+                        (wordsFile.parts
                             |> Dict.get dictName
                             |> Maybe.withDefault []
                             |> List.map (Words.wordHanzi >> text)
@@ -567,38 +594,60 @@ viewDictionaryModal onMobile dicts activeDicts showingCurrentDictionaryIndex =
                 "Please add at least one dictionary!"
 
           else
-            UI.niceText <| "You have added " ++ String.fromInt activeDictsCount ++ " of " ++ (String.fromInt <| Dict.size dicts) ++ " dictionaries."
+            UI.niceText <| "You have added " ++ String.fromInt activeDictsCount ++ " of " ++ (String.fromInt <| Dict.size wordsFile.parts) ++ " dictionaries."
         , row [ centerX, spacing 10 ]
             [ (showingCurrentDictionaryIndex > 0)
                 |> noChevronOr (UI.niceIconButtonWith chevronAttr (Icons.chevronLeft 20) (SetDictionaryModalShowIndex (showingCurrentDictionaryIndex - 1)) "")
-            , dicts
-                |> Dict.toList
+            , wordsFile.structure
                 |> List.getAt showingCurrentDictionaryIndex
                 |> Maybe.map
-                    (\( dictName, words ) ->
-                        let
-                            enabled =
-                                List.member dictName activeDicts
+                    (\( title, sub ) ->
+                        column [ spacing 10 ]
+                            [ UI.headingWith [] title
+                            , UI.columnOrRow onMobile [ spacing 10 ] <|
+                                List.map
+                                    (\( subtitle, dictName ) ->
+                                        let
+                                            enabled =
+                                                List.member dictName activeDicts
 
-                            txt =
-                                if enabled then
-                                    "Remove"
-
-                                else
-                                    "Add"
-                        in
-                        column []
-                            [ singleDictionaryCard dictName enabled words
-                            , el [ centerX, padding 10 ] <|
-                                UI.niceButton txt (ClickedToggleDictionary dictName (not enabled)) Nothing
+                                            words =
+                                                Dict.get dictName wordsFile.parts
+                                                    |> Maybe.withDefault []
+                                        in
+                                        singleDictionaryCard subtitle dictName enabled words (ClickedToggleDictionary dictName (not enabled))
+                                    )
+                                    sub
                             ]
                     )
                 |> Maybe.withDefault none
-            , (showingCurrentDictionaryIndex < Dict.size dicts - 1)
+
+            --wordsFile.parts
+            --|> Dict.toList
+            --|> List.getAt showingCurrentDictionaryIndex
+            --|> Maybe.map
+            --    (\( dictName, words ) ->
+            --        let
+            --            enabled =
+            --                List.member dictName activeDicts
+            --            txt =
+            --                if enabled then
+            --                    "Remove"
+            --                else
+            --                    "Add"
+            --        in
+            --        column []
+            --            [ singleDictionaryCard dictName enabled words
+            --            , el [ centerX, padding 10 ] <|
+            --                UI.niceButton txt (ClickedToggleDictionary dictName (not enabled)) Nothing
+            --            ]
+            --    )
+            --|> Maybe.withDefault none
+            , (showingCurrentDictionaryIndex < List.length wordsFile.structure - 1)
                 |> noChevronOr (UI.niceIconButtonWith chevronAttr (Icons.chevronRight 20) (SetDictionaryModalShowIndex (showingCurrentDictionaryIndex + 1)) "")
             ]
         , row [ centerX, spacing 10 ]
-            (List.range 0 (Dict.size dicts - 1)
+            (List.range 0 (List.length wordsFile.structure - 1)
                 |> List.map (\i -> dot (i == showingCurrentDictionaryIndex))
             )
         , el [ height (px 20) ] none

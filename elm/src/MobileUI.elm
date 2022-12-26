@@ -139,15 +139,21 @@ niceTextWith attr str =
         Element.text str
 
 
-heading str =
+heading =
+    headingWith []
+
+
+headingWith attr str =
     el
-        [ Element.Font.color UI.accentColor
-        , centerX
-        , centerY
-        , Element.Font.bold
-        , Element.Font.center
-        , Element.Font.size 16
-        ]
+        ([ Element.Font.color UI.accentColor
+         , centerX
+         , centerY
+         , Element.Font.bold
+         , Element.Font.center
+         , Element.Font.size 16
+         ]
+            ++ attr
+        )
     <|
         Element.text str
 
@@ -340,6 +346,13 @@ modal toggleMsg content =
             ]
             (content
                 ++ [ el [ alignBottom, centerX ] <|
-                        niceButton "Close" toggleMsg Nothing
+                        niceButtonWith
+                            [ htmlAttribute <| Html.Attributes.style "position" "fixed"
+                            , htmlAttribute <| Html.Attributes.style "bottom" "10px"
+                            , htmlAttribute <| Html.Attributes.style "margin-left" "-35px"
+                            ]
+                            "Close"
+                            toggleMsg
+                            Nothing
                    ]
             )

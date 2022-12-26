@@ -545,7 +545,7 @@ viewGame device dictionaries activeDicts game =
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                 ]
                 [ viewDictionaryModal onMobile dictionaries activeDicts game
-                , Help.view game.showHelp onMobile dictionaries OnToggleHelp NoOpString
+                , Help.view game.showHelp onMobile OnToggleHelp NoOpString
                 ]
 
         contentSpacing =

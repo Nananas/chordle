@@ -112,11 +112,11 @@ postTrainingFinished uuid activeDicts { gameStats } =
 
 
 type alias GetWordsResponse =
-    Result Http.Error (Dict String (List Words.Word))
+    Result Http.Error Words.WordsFile
 
 
 getWords msg =
     Http.get
-        { url = "words.json"
+        { url = "dictionaries.json"
         , expect = Http.expectJson msg Words.wordsFileDecoder
         }

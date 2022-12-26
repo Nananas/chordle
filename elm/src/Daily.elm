@@ -643,15 +643,15 @@ viewHistoryModal onMobile game =
         ]
 
 
-view : Device -> Words.Dictionaries -> Model -> Element Msg
-view device dictionaries model =
+view : Device -> Model -> Element Msg
+view device model =
     let
         onMobile =
             Utils.isOnMobile device
 
         modals game =
             if game.showHelp then
-                Help.view game.showHelp onMobile dictionaries OnToggleHelp NoOpString
+                Help.view game.showHelp onMobile OnToggleHelp NoOpString
 
             else if game.showProgressPopup then
                 viewHistoryModal onMobile game
