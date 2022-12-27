@@ -107,6 +107,7 @@ toneReplacers =
     , String.replace "en2" "én"
     , String.replace "en3" "ěn"
     , String.replace "en4" "èn"
+    , String.replace "en5" "en"
     , String.replace "eng1" "ēng"
     , String.replace "eng2" "éng"
     , String.replace "eng3" "ěng"
