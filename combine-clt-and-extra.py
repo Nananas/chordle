@@ -7,7 +7,12 @@ def addWords(fname):
     with open(fname + ".json" ) as f:
         words = []
         for line in f.readlines():
-            j = json.loads(line[:-1])
+            try:
+                j = json.loads(line[:-1])
+            except Exception as e:
+                print("Could not load json", line[:-1])
+                print(e)
+                exit(1)
 
             if j[0] not in hanzi:
                 words.append(j)
