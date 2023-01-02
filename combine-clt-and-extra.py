@@ -42,6 +42,6 @@ dicts = [
 print(len(parts))
 print(dicts)
 
-with open("dictionaries.json", "w") as f:
+with open("static/dictionaries.json", "w") as f:
     out = {"structure": dicts, "parts": parts}
     json.dump(out, f, ensure_ascii=False)
