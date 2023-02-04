@@ -4,6 +4,7 @@ import Backend
 import Browser
 import Browser.Dom
 import Browser.Events
+import Changelog
 import Daily
 import Dict exposing (Dict)
 import Element exposing (..)
@@ -59,6 +60,7 @@ type Msg
     | OnGetWords Backend.GetWordsResponse
     | ClickedToggleDictionary String Bool
     | ClickedToggleDictionaryModal
+    | ClickedToggleChangelog
     | SetDictionaryModalShowIndex Int
     | ClickedChooseDaily
     | ClickedChooseTraining
@@ -79,6 +81,7 @@ type alias Model =
     , activeDicts : List String
     , showDictionaryModal : Bool
     , showingCurrentDictionaryIndex : Int
+    , showChangelogModal : Bool
     }
 
 
@@ -87,6 +90,7 @@ type State
     | LoadingViewport
     | LoadingWords
     | LoadingActiveDicts
+    | LoadingSettings
     | ChooseGameType
     | Training Training.Model
     | Daily Daily.Model
@@ -106,6 +110,7 @@ init _ =
       , activeDicts = []
       , showDictionaryModal = False
       , showingCurrentDictionaryIndex = 0
+      , showChangelogModal = False
       }
     , Storage.loadStorage "id"
     )
@@ -155,17 +160,56 @@ update msg model =
                             | activeDicts =
                                 activeDicts
                                     |> List.filter (\d -> Dict.member d model.wordsFile.parts)
-                            , state = ChooseGameType
+                            , state = LoadingSettings
                           }
-                        , Cmd.none
+                        , Storage.loadStorage "settings"
                         )
 
                     Err err ->
                         ( { model
                             | activeDicts = []
+                            , state = LoadingSettings
+                          }
+                        , Storage.loadStorage "settings"
+                        )
+
+            else
+                ( model, Cmd.none )
+
+        ( OnStorageLoaded { name, json }, LoadingSettings ) ->
+            if name == "settings" then
+                let
+                    decoder =
+                        Json.Decode.field "version" Json.Decode.string
+
+                    decoded =
+                        Json.Decode.decodeValue decoder json
+
+                    saveVersionToStorage =
+                        Storage.setStorage
+                            { name = "settings"
+                            , json = Json.Encode.object [ ( "version", Json.Encode.string Changelog.currentVersion ) ]
+                            }
+                in
+                case decoded of
+                    Ok version ->
+                        if Changelog.currentVersion /= version then
+                            ( { model
+                                | showChangelogModal = True
+                                , state = ChooseGameType
+                              }
+                            , saveVersionToStorage
+                            )
+
+                        else
+                            ( { model | state = ChooseGameType }, Cmd.none )
+
+                    Err err ->
+                        ( { model
+                            | showChangelogModal = True
                             , state = ChooseGameType
                           }
-                        , Cmd.none
+                        , saveVersionToStorage
                         )
 
             else
@@ -257,6 +301,9 @@ update msg model =
             , Cmd.none
             )
 
+        ( ClickedToggleChangelog, _ ) ->
+            ( { model | showChangelogModal = not model.showChangelogModal }, Cmd.none )
+
         ( SetDictionaryModalShowIndex _, _ ) ->
             ( model, Cmd.none )
 
@@ -273,6 +320,7 @@ update msg model =
                 |> liftBoth Training TrainingMsg
                 |> setStateIn model
 
+        --
         ( TrainingMsg Training.OnClickedHome, _ ) ->
             ( { model | state = ChooseGameType }, Cmd.none )
 
@@ -339,7 +387,7 @@ view model =
     layoutWith { options = [ focusStyle { backgroundColor = Nothing, borderColor = Nothing, shadow = Nothing } ] } [ width fill, height fill ] <|
         case model.state of
             ChooseGameType ->
-                viewChooseGameType onMobile model.wordsFile model.activeDicts model.showDictionaryModal model.showingCurrentDictionaryIndex
+                viewChooseGameType onMobile model
 
             Training trainingModel ->
                 Training.view model.device model.wordsFile.parts model.activeDicts trainingModel
@@ -361,12 +409,15 @@ view model =
                 UI.spinner
 
 
-viewChooseGameType : Bool -> Words.WordsFile -> List String -> Bool -> Int -> Element Msg
-viewChooseGameType onMobile wordsFile activeDicts showModal showingCurrentDictionaryIndex =
+viewChooseGameType : Bool -> Model -> Element Msg
+viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showingCurrentDictionaryIndex, showChangelogModal } =
     let
         modal =
-            if showModal then
+            if showDictionaryModal then
                 viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
+
+            else if showChangelogModal then
+                Changelog.view onMobile ClickedToggleChangelog
 
             else
                 none
@@ -386,7 +437,7 @@ viewChooseGameType onMobile wordsFile activeDicts showModal showingCurrentDictio
                 msg
     in
     column [ width fill, height fill, inFront modal ]
-        [ viewTopBar onMobile wordsFile.parts activeDicts showModal
+        [ viewTopBar onMobile wordsFile.parts activeDicts showDictionaryModal
         , el [ width fill, height fill ] <|
             column [ centerX, centerY, spacing 100 ]
                 [ column [ centerX, spacing 20 ]
@@ -454,6 +505,7 @@ viewTopBar onMobile dictionaries activeDicts showModal =
                )
         )
         [ el [ alignRight, onLeft helpMessage ] <| buttonFn "Dictionaries" ClickedToggleDictionaryModal (Icons.translate iconSize)
+        , el [ alignRight ] <| buttonFn "Changelog" ClickedToggleChangelog (Icons.code iconSize)
         ]
 
 
