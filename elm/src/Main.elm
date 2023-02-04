@@ -509,10 +509,10 @@ viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
                     )
                 , height <|
                     if onMobile then
-                        px 200
+                        px 150
 
                     else
-                        px 300
+                        px 200
                 , UI.floating
                 , UI.rounded 10
                 , Background.color UI.lightColor
@@ -580,7 +580,7 @@ viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
     in
     modalFn ClickedToggleDictionaryModal
         [ UI.heading <| "Active Dictionaries"
-        , paragraph [ width <| maximum 700 fill ]
+        , paragraph [ width <| maximum 850 fill ]
             [ text "You can add one or more dictionaries below. The words from these dictionaries are then available to play the "
             , el [ Font.bold ] (text "Daily")
             , text " and "
@@ -602,9 +602,9 @@ viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
                 |> List.getAt showingCurrentDictionaryIndex
                 |> Maybe.map
                     (\( title, sub ) ->
-                        column [ spacing 10 ]
+                        column [ spacing 10, width <| maximum 850 fill ]
                             [ UI.headingWith [] title
-                            , UI.columnOrRow onMobile [ spacing 10 ] <|
+                            , UI.columnOrWrappedRow onMobile [ spacing 10 ] <|
                                 List.map
                                     (\( subtitle, dictName ) ->
                                         let

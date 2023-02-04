@@ -107,6 +107,14 @@ columnOrRow col =
         row
 
 
+columnOrWrappedRow col =
+    if col then
+        column
+
+    else
+        wrappedRow
+
+
 niceButton text onClick mIcon =
     niceButtonWith [] text onClick mIcon
 
