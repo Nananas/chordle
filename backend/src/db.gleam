@@ -13,7 +13,7 @@ pub fn insert_event(
   page_event: PageEvent,
 ) -> Result(Nil, String) {
   let insert_sql =
-    "insert into page_events(page, uuid, event) values ($1, $2, $3);"
+    "insert into page_events(page, uuid, details) values ($1, $2, $3);"
   let event_json_str =
     api.event_to_json(page_event.event)
     |> json.to_string

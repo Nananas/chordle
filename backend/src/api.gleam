@@ -135,7 +135,7 @@ pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
     PageEvent,
     dynamic.field("page", of: dynamic.string),
     dynamic.field("uuid", of: dynamic.string),
-    dynamic.field("event", of: event_decoder),
+    dynamic.field("details", of: event_decoder),
   )
   |> json.decode(from: str)
   |> utils.map_json_error_to_string
