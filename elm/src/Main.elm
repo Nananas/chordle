@@ -82,6 +82,7 @@ type alias Model =
     , showDictionaryModal : Bool
     , showingCurrentDictionaryIndex : Int
     , showChangelogModal : Bool
+    , oldChangelogVersion : Maybe String
     }
 
 
@@ -111,6 +112,7 @@ init _ =
       , showDictionaryModal = False
       , showingCurrentDictionaryIndex = 0
       , showChangelogModal = False
+      , oldChangelogVersion = Nothing
       }
     , Storage.loadStorage "id"
     )
@@ -197,12 +199,18 @@ update msg model =
                             ( { model
                                 | showChangelogModal = True
                                 , state = ChooseGameType
+                                , oldChangelogVersion = Just version
                               }
                             , saveVersionToStorage
                             )
 
                         else
-                            ( { model | state = ChooseGameType }, Cmd.none )
+                            ( { model
+                                | oldChangelogVersion = Just version
+                                , state = ChooseGameType
+                              }
+                            , Cmd.none
+                            )
 
                     Err err ->
                         ( { model
@@ -410,14 +418,14 @@ view model =
 
 
 viewChooseGameType : Bool -> Model -> Element Msg
-viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showingCurrentDictionaryIndex, showChangelogModal } =
+viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showingCurrentDictionaryIndex, showChangelogModal, oldChangelogVersion } =
     let
         modal =
             if showDictionaryModal then
                 viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
 
             else if showChangelogModal then
-                Changelog.view onMobile ClickedToggleChangelog
+                Changelog.view oldChangelogVersion onMobile ClickedToggleChangelog
 
             else
                 none

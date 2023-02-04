@@ -24,7 +24,7 @@ changelog =
     ]
 
 
-view onMobile toggleMsg =
+view mStorageVersion onMobile toggleMsg =
     let
         modalFn =
             if onMobile then
@@ -35,9 +35,7 @@ view onMobile toggleMsg =
     in
     modalFn toggleMsg
         [ row [ centerX, spacing 20 ]
-            [ el [ Element.Font.color UI.accentColor ] <| Icons.sparkle 20
-            , UI.heading "Changelog!"
-            , el [ Element.Font.color UI.accentColor ] <| Icons.sparkle 20
+            [ UI.heading "The Changelog:"
             ]
         , changelog
             |> List.map
@@ -45,6 +43,24 @@ view onMobile toggleMsg =
                     column [ width fill, alignLeft, spacing 20 ]
                         [ row [ width fill ]
                             [ UI.niceTextWith [ alignLeft ] ("v" ++ version)
+                            , let
+                                showNew =
+                                    case mStorageVersion of
+                                        Nothing ->
+                                            True
+
+                                        Just storageVersion ->
+                                            versionToTuple version > versionToTuple storageVersion
+                              in
+                              if showNew then
+                                row [ centerX, spacing 10 ]
+                                    [ el [ Element.Font.color UI.accentColor ] <| Icons.sparkle 20
+                                    , UI.niceTextWith [] "NEW"
+                                    , el [ Element.Font.color UI.accentColor ] <| Icons.sparkle 20
+                                    ]
+
+                              else
+                                none
                             , el [ alignRight, Element.Font.color UI.gray ] (text <| Date.toIsoString date)
                             ]
                         , column [ width fill, spacing 5 ] <|
@@ -53,3 +69,12 @@ view onMobile toggleMsg =
                 )
             |> column [ padding 20, spacing 20, scrollbarY, height <| px 500, width fill ]
         ]
+
+
+versionToTuple version =
+    case String.split "." version of
+        [ maj, min, patch ] ->
+            ( maj, min, patch )
+
+        _ ->
+            ( "?", "?", "?" )
