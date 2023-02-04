@@ -10,6 +10,7 @@ import Html
 import Html.Attributes
 import Html.Events
 import Icons
+import Json.Decode
 import Svg
 import Svg.Attributes
 import UI
@@ -248,62 +249,40 @@ tones =
 
 viewKeyboard : (String -> msg) -> msg -> msg -> Element msg
 viewKeyboard onCharMsg onBackspaceMsg onClearMsg =
+    let
+        btn x msg =
+            el
+                [ UI.floating
+                , width fill
+                , height fill
+                , mouseOver [ Element.Background.color UI.accentColorLight ]
+                , htmlAttribute <| Html.Events.on "touchstart" (Json.Decode.succeed msg)
+                , htmlAttribute <| Html.Attributes.style "-webkit-user-select" "none" -- Safari
+                , htmlAttribute <| Html.Attributes.style "-ms-user-select" "none" -- IE 10
+                , htmlAttribute <| Html.Attributes.style "user-select" "none"
+                ]
+            <|
+                el [ centerX, centerY ] x
+    in
     keys
         |> List.map
             (\row ->
                 row
-                    |> List.map
-                        (\key ->
-                            Element.Input.button
-                                [ UI.floating
-                                , width fill
-                                , height fill
-                                , mouseOver [ Element.Background.color UI.accentColorLight ]
-                                , Element.Events.onMouseDown <| onCharMsg key
-                                ]
-                                { onPress = Nothing
-                                , label = el [ centerX, centerY ] (text key)
-                                }
-                        )
+                    |> List.map (\key -> btn (text key) (onCharMsg key))
                     |> Element.row [ spacing 4, width fill, height fill ]
             )
         |> (::)
             (Element.row [ spacing 4, width fill, height fill ] <|
                 List.map
                     (\( icon, ch ) ->
-                        Element.Input.button
-                            [ UI.floating
-                            , width fill
-                            , height fill
-                            , mouseOver [ Element.Background.color UI.accentColorLight ]
-                            , Element.Events.onMouseDown <| onCharMsg ch
-                            ]
-                            { onPress = Nothing
-                            , label = el [ centerX, centerY ] <| icon 20
-                            }
+                        btn (icon 20) (onCharMsg ch)
                     )
                     tones
             )
         |> (::)
             (Element.row [ spacing 4, width fill, height fill ]
-                [ Element.Input.button
-                    [ UI.floating
-                    , width fill
-                    , height fill
-                    , mouseOver [ Element.Background.color UI.accentColorLight ]
-                    ]
-                    { onPress = Just onClearMsg
-                    , label = el [ centerX, centerY ] (text "Clear")
-                    }
-                , Element.Input.button
-                    [ UI.floating
-                    , width fill
-                    , height fill
-                    , mouseOver [ Element.Background.color UI.accentColorLight ]
-                    ]
-                    { onPress = Just onBackspaceMsg
-                    , label = el [ centerX, centerY ] (text "Backspace")
-                    }
+                [ btn (text "Clear") onClearMsg
+                , btn (text "Backspace") onBackspaceMsg
                 ]
             )
         |> Element.column
