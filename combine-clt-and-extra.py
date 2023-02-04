@@ -16,9 +16,11 @@ def addWords(fname):
 
             if j[0] not in hanzi:
                 words.append(j)
-                hanzi[j[0]] = fname
+                hanzi[j[0]] = (fname, j[2])
             else:
-                print("Duplicate: ", j[0], fname, ", previous:", hanzi[j[0]], )
+                print("Duplicate: ", j[0], fname, ", previous:", hanzi[j[0]][0], )
+                print("\tN:", j[2])
+                print("\tO:", hanzi[j[0]][1])
         words.sort(key=lambda w: w[1])
         parts[fname] = words
     return fname
@@ -35,7 +37,9 @@ dicts = [
         ("Extra", addWords("extra-clt3"))]),
     ("NPCR CLT year 4",
         [("Book Semester 1", addWords("clt4-semester1")), 
-        ("Extra Semester 1", addWords("extra-clt4-semester1"))])
+        ("Extra Semester 1", addWords("extra-clt4-semester1")),
+        ("Book Semester 2", addWords("clt4-semester2")),
+        ("Extra Semester 2", addWords("extra-clt4-semester2"))])
     ]
 
 
