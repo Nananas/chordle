@@ -23,3 +23,7 @@ test:
 
 watch:
 	npx elm-watch hot
+
+
+words:
+	cd .. && python3 combine-clt-and-extra.py
