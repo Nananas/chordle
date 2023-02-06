@@ -17,7 +17,11 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Feb 4
+    [ ( Date.fromCalendarDate 2023 Feb 6
+      , "0.2.0"
+      , [ "Added a numbers game, to practice translating large numbers.\n   This game is currently still unfinished, but should already be playable." ]
+      )
+    , ( Date.fromCalendarDate 2023 Feb 4
       , "0.1.0"
       , [ "This is the start of the changelog", "Dictionaries added: 'CLT4 Semester 2' and partial 'Extra CLT4 Semester 2'" ]
       )

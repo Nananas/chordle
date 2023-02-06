@@ -23,6 +23,7 @@ import Json.Decode
 import Json.Encode
 import List.Extra as List
 import MobileUI
+import Numbers
 import Process
 import Random
 import Random.List
@@ -64,8 +65,10 @@ type Msg
     | SetDictionaryModalShowIndex Int
     | ClickedChooseDaily
     | ClickedChooseTraining
+    | ClickedChooseNumbers
     | TrainingMsg Training.Msg
     | DailyMsg Daily.Msg
+    | NumbersMsg Numbers.Msg
     | NoOp
 
 
@@ -95,6 +98,7 @@ type State
     | ChooseGameType
     | Training Training.Model
     | Daily Daily.Model
+    | Numbers Numbers.Model
     | Error String
 
 
@@ -328,6 +332,11 @@ update msg model =
                 |> liftBoth Training TrainingMsg
                 |> setStateIn model
 
+        ( ClickedChooseNumbers, _ ) ->
+            Numbers.init
+                |> liftBoth Numbers NumbersMsg
+                |> setStateIn model
+
         --
         ( TrainingMsg Training.OnClickedHome, _ ) ->
             ( { model | state = ChooseGameType }, Cmd.none )
@@ -349,6 +358,17 @@ update msg model =
                 |> setStateIn model
 
         ( DailyMsg _, _ ) ->
+            ( model, Cmd.none )
+
+        ( NumbersMsg Numbers.OnClickedHome, _ ) ->
+            ( { model | state = ChooseGameType }, Cmd.none )
+
+        ( NumbersMsg numbersMsg, Numbers numbersModel ) ->
+            Numbers.update model.uuid numbersMsg numbersModel
+                |> liftBoth Numbers NumbersMsg
+                |> setStateIn model
+
+        ( NumbersMsg _, _ ) ->
             ( model, Cmd.none )
 
         ( NoOp, _ ) ->
@@ -405,6 +425,10 @@ view model =
                 Daily.view model.device dailyModel
                     |> Element.map DailyMsg
 
+            Numbers numbersModel ->
+                Numbers.view model.device numbersModel
+                    |> Element.map NumbersMsg
+
             Error msg ->
                 el [ centerX, centerY ] <|
                     column [ alignLeft, spacing 30 ] <|
@@ -452,6 +476,7 @@ viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showi
                     [ row [ centerX, spacing 50 ]
                         [ el [] <| UI.niceButtonWith attrs "Daily Chordle" (orDisabled ClickedChooseDaily) (Just <| Icons.calendar 24)
                         , el [] <| UI.niceButtonWith attrs "Training" (orDisabled ClickedChooseTraining) (Just <| Icons.academicCap 24)
+                        , el [] <| UI.niceButtonWith attrs "Numbers" (orDisabled ClickedChooseNumbers) (Just <| Icons.calculator 24)
                         ]
                     ]
                 ]

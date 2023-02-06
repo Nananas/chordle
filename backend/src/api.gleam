@@ -10,6 +10,7 @@ pub type Event {
   Daily(event: DailyEvent)
   TrainingFinished(event: TrainingFinishedEvent)
   TrainingRound(event: TrainingRoundEvent)
+  NumbersRound(event: NumbersRoundEvent)
 }
 
 pub type DailyEvent {
@@ -41,6 +42,10 @@ pub type TrainingRoundEvent {
   )
 }
 
+pub type NumbersRoundEvent {
+  NumbersRoundEvent(number: Int, mode: String)
+}
+
 // DECODERS
 
 pub fn page_event_to_json(page_event: PageEvent) -> json.Json {
@@ -56,6 +61,7 @@ pub fn event_to_json(event: Event) -> json.Json {
     Daily(e) -> daily_event_to_json(e)
     TrainingFinished(e) -> training_finished_event_to_json(e)
     TrainingRound(e) -> training_round_event_to_json(e)
+    NumbersRound(e) -> numbers_round_event_to_json(e)
   }
 }
 
@@ -92,6 +98,15 @@ pub fn training_round_event_to_json(
   ])
 }
 
+pub fn numbers_round_event_to_json(
+  numbers_event: NumbersRoundEvent,
+) -> json.Json {
+  json.object([
+    #("number", json.int(numbers_event.number)),
+    #("mode", json.string(numbers_event.mode)),
+  ])
+}
+
 pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
   let daily_event_decoder =
     dynamic.decode6(
@@ -124,11 +139,19 @@ pub fn decode_page_event(str: String) -> Result(PageEvent, String) {
       dynamic.field("mistakes", of: dynamic.int),
     )
 
+  let numbers_round_event_decoder =
+    dynamic.decode2(
+      fn(a, b) { NumbersRound(event: NumbersRoundEvent(a, b)) },
+      dynamic.field("number", of: dynamic.int),
+      dynamic.field("mode", of: dynamic.string),
+    )
+
   let event_decoder =
     dynamic.any([
       daily_event_decoder,
       training_finished_event_decoder,
       training_round_event_decoder,
+      numbers_round_event_decoder,
     ])
 
   dynamic.decode3(

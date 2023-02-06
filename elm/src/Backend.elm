@@ -111,6 +111,27 @@ postTrainingFinished uuid activeDicts { gameStats } =
         }
 
 
+postNumbersRoundEnd uuid number =
+    let
+        body =
+            Json.Encode.object
+                [ ( "page", Json.Encode.string "numbers" )
+                , ( "uuid", Json.Encode.string (Maybe.withDefault "<unknown>" uuid) )
+                , ( "details"
+                  , Json.Encode.object
+                        [ ( "number", Json.Encode.int number )
+                        , ( "mode", Json.Encode.string "en-ch" )
+                        ]
+                  )
+                ]
+    in
+    Http.post
+        { url = eventUrl
+        , body = Http.jsonBody body
+        , expect = Http.expectWhatever NoOp
+        }
+
+
 type alias GetWordsResponse =
     Result Http.Error Words.WordsFile
 
