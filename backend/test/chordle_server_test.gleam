@@ -23,7 +23,7 @@ pub fn db_page_event_insert_test() {
         rata: -1,
       )),
     )
-  try dbc = db.connect()
+  use dbc <- result.then(db.connect())
   db.insert_event(dbc, page_event)
   |> should.be_ok
 

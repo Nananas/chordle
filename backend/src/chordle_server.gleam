@@ -62,9 +62,9 @@ fn not_found() {
 }
 
 pub fn main() {
-  assert Ok(db) = db.connect()
+  let assert Ok(db) = db.connect()
 
-  assert Ok(_) =
+  let assert Ok(_) =
     mist.serve(
       8080,
       handler.with_func(fn(req: Request(Body)) -> HandlerResponse {
@@ -78,7 +78,7 @@ pub fn main() {
           http.Post, ["event"] -> {
             use <- check_valid_content_type_header(req)
             use page_event <- parse_page_event(req)
-            assert Ok(_) = db.insert_event(db, page_event)
+            let assert Ok(_) = db.insert_event(db, page_event)
             response.new(200)
             |> response.set_body(BitBuilderBody(bit_builder.from_string("OK")))
             |> Response
@@ -96,7 +96,7 @@ pub fn serve_file(filename: String) -> HandlerResponse {
   let file_path = bit_string.from_string(static_dir <> filename)
 
   let size = mfile.size(file_path)
-  assert Ok(fd) = mfile.open(file_path)
+  let assert Ok(fd) = mfile.open(file_path)
 
   let mime_types =
     [

@@ -1,3 +1,4 @@
+import gleam/result
 import gleam/pgo
 import gleam/option.{Some}
 import gleam/io
@@ -23,7 +24,7 @@ pub fn insert_event(
     time.now()
     |> time.to_iso8601
 
-  try _ =
+  use _ <- result.then(
     pgo.execute(
       insert_sql,
       db,
@@ -35,7 +36,8 @@ pub fn insert_event(
       ],
       dynamic.dynamic,
     )
-    |> map_error_string("Database error")
+    |> map_error_string("Database error"),
+  )
   Ok(Nil)
 }
 
@@ -52,18 +54,20 @@ pub fn connect() -> Result(pgo.Connection, String) {
   io.debug(db_config)
   let db = pgo.connect(db_config)
 
-  try r =
+  use r <- result.then(
     pgo.execute(
       "select count(*) from page_events",
       db,
       [],
       dynamic.element(0, dynamic.int),
     )
-    |> map_error_string("Database error: could not select all page_events")
+    |> map_error_string("Database error: could not select all page_events"),
+  )
 
-  try count =
+  use count <- result.then(
     list.first(r.rows)
-    |> map_error_string("Incorrect DB result")
+    |> map_error_string("Incorrect DB result"),
+  )
 
   io.println("Database connected:")
   io.println("\tPage events: " <> int.to_string(count))
