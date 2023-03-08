@@ -7,16 +7,21 @@ import gleam/int
 import gleam/json
 import api.{PageEvent}
 import utils.{map_error_string}
+import birl/time
 
 pub fn insert_event(
   db: pgo.Connection,
   page_event: PageEvent,
 ) -> Result(Nil, String) {
   let insert_sql =
-    "insert into page_events(page, uuid, details) values ($1, $2, $3);"
+    "insert into page_events(page, uuid, details, timestamp) values ($1, $2, $3, $4);"
   let event_json_str =
     api.event_to_json(page_event.event)
     |> json.to_string
+
+  let timestamp_str =
+    time.now()
+    |> time.to_iso8601
 
   try _ =
     pgo.execute(
@@ -26,6 +31,7 @@ pub fn insert_event(
         pgo.text(page_event.page),
         pgo.text(page_event.uuid),
         pgo.text(event_json_str),
+        pgo.text(timestamp_str),
       ],
       dynamic.dynamic,
     )

@@ -3,6 +3,7 @@
 
 packages = [
   { name = "backoff", version = "1.1.6", build_tools = ["rebar3"], requirements = [], otp_app = "backoff", source = "hex", outer_checksum = "CF0CFFF8995FB20562F822E5CC47D8CCF664C5ECDC26A684CBE85C225F9D7C39" },
+  { name = "birl", version = "0.6.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "birl", source = "hex", outer_checksum = "1194BEDD94458FD03DCECFC10B4AD7E824B153D6205AD03CFA1E2D105E849559" },
   { name = "gleam_bitwise", version = "1.2.0", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_bitwise", source = "hex", outer_checksum = "6064699EFBABB1CA392DCB193D0E8B402FB042B4B46857B01E6875E643B57F54" },
   { name = "gleam_crypto", version = "0.3.1", build_tools = ["gleam"], requirements = ["gleam_bitwise", "gleam_stdlib"], otp_app = "gleam_crypto", source = "hex", outer_checksum = "C356D26C3EDFF495F2C73378C4D9C47435F729F5852ECA8CD6F635515317E630" },
   { name = "gleam_erlang", version = "0.18.1", build_tools = ["gleam"], requirements = ["gleam_stdlib"], otp_app = "gleam_erlang", source = "hex", outer_checksum = "C69F59D086AD50B80DE294FB0963550630971C9DC04E92B1F7AEEDD2C0BE226C" },
@@ -23,6 +24,7 @@ packages = [
 ]
 
 [requirements]
+birl = "~> 0.4"
 gleam_crypto = "~> 0.3"
 gleam_erlang = "~> 0.17"
 gleam_json = "~> 0.5"
