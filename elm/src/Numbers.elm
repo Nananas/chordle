@@ -1,7 +1,6 @@
 module Numbers exposing (..)
 
 import Backend
-import Common
 import Element exposing (..)
 import Element.Background as Background
 import Element.Font
@@ -145,7 +144,7 @@ update uuid msg model =
         ( Ready game, NextRound ) ->
             ( model, cmdRandomNumberAndMode game.gameModesEnabled )
 
-        ( Ready game, OnClickedHome ) ->
+        ( Ready _, OnClickedHome ) ->
             ( model, Cmd.none )
 
         ( Ready game, OnToggleHelp ) ->
@@ -216,7 +215,7 @@ viewTopBar onMobile model =
     let
         buttonFn =
             if onMobile then
-                \str onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
+                \_ onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
 
             else
                 \str onClick icon -> UI.niceButton str onClick (Just icon)
@@ -279,15 +278,16 @@ showAnswerNumber game =
 viewGame : Bool -> GameModel -> Element Msg
 viewGame onMobile game =
     let
-        modalFn =
-            if onMobile then
-                MobileUI.modal
-
-            else
-                UI.modal
-
         modal =
             if game.showHelp then
+                let
+                    modalFn =
+                        if onMobile then
+                            MobileUI.modal
+
+                        else
+                            UI.modal
+                in
                 modalFn OnToggleHelp (viewHelp onMobile game.showPopupForCharacter)
 
             else

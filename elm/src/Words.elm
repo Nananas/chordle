@@ -5,9 +5,8 @@ module Words exposing (..)
 
 import Dict exposing (Dict)
 import Json.Decode
-import Json.Encode
 import List.Extra as List
-import Set exposing (Set)
+import Set
 import Tones exposing (..)
 
 
@@ -319,7 +318,7 @@ newWord hanzi pinyin english =
     let
         pinyinParts =
             case splitStringIntoPinyin pinyin of
-                Err err ->
+                Err _ ->
                     []
 
                 Ok p ->

@@ -1,8 +1,7 @@
 module WordsTest exposing (..)
 
 import Dict
-import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, int, list, string)
+import Expect
 import Test exposing (..)
 import Tones
 import WordChain

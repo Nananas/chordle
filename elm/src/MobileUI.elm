@@ -6,7 +6,6 @@ import Element.Border
 import Element.Events
 import Element.Font
 import Element.Input
-import Html
 import Html.Attributes
 import Html.Events
 import Icons

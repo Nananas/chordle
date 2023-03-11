@@ -6,38 +6,27 @@ import Browser.Dom
 import Browser.Events
 import Changelog
 import Daily
-import Dict exposing (Dict)
+import Dict
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Events
 import Element.Font as Font
-import Element.Input as Input
-import Element.Lazy
-import Help
 import Html
 import Html.Attributes
-import Html.Events
 import Icons
 import Json.Decode
 import Json.Encode
 import List.Extra as List
 import MobileUI
 import Numbers
-import Process
 import Random
-import Random.List
-import Set
 import Storage
-import String.Extra as String
 import Task
-import Time
-import Tones exposing (..)
 import Training
 import UI
 import Utils exposing (..)
 import Uuid.Barebones exposing (uuidStringGenerator)
-import Words exposing (..)
+import Words
 
 
 main =
@@ -145,7 +134,7 @@ update msg model =
                             |> Task.perform OnGetViewport
                         )
 
-                    Err err ->
+                    Err _ ->
                         ( model, Random.generate UUIDGenerated uuidStringGenerator )
 
             else
@@ -171,7 +160,7 @@ update msg model =
                         , Storage.loadStorage "settings"
                         )
 
-                    Err err ->
+                    Err _ ->
                         ( { model
                             | activeDicts = []
                             , state = LoadingSettings
@@ -216,7 +205,7 @@ update msg model =
                             , Cmd.none
                             )
 
-                    Err err ->
+                    Err _ ->
                         ( { model
                             | showChangelogModal = True
                             , state = ChooseGameType
@@ -235,10 +224,10 @@ update msg model =
             , Storage.loadStorage "active-dicts"
             )
 
-        ( OnGetWords (Err err), LoadingWords ) ->
+        ( OnGetWords (Err _), LoadingWords ) ->
             ( { model | state = Error "I could not load the dictionaries." }, Cmd.none )
 
-        ( OnGetWords x, _ ) ->
+        ( OnGetWords _, _ ) ->
             ( model, Cmd.none )
 
         -- Forward storage subscriptions
@@ -249,7 +238,7 @@ update msg model =
         ( OnStorageLoaded storage, Daily _ ) ->
             update (DailyMsg <| Daily.OnStorageLoaded storage) model
 
-        ( OnStorageLoaded storage, _ ) ->
+        ( OnStorageLoaded _, _ ) ->
             ( model, Cmd.none )
 
         ( UUIDGenerated uuid, _ ) ->
@@ -408,13 +397,13 @@ subscriptions model =
 
 view : Model -> Html.Html Msg
 view model =
-    let
-        onMobile =
-            isOnMobile model.device
-    in
     layoutWith { options = [ focusStyle { backgroundColor = Nothing, borderColor = Nothing, shadow = Nothing } ] } [ width fill, height fill ] <|
         case model.state of
             ChooseGameType ->
+                let
+                    onMobile =
+                        isOnMobile model.device
+                in
                 viewChooseGameType onMobile model
 
             Training trainingModel ->
@@ -488,7 +477,7 @@ viewTopBar onMobile dictionaries activeDicts showModal =
     let
         buttonFn =
             if onMobile then
-                \str onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
+                \_ onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
 
             else
                 \str onClick icon -> UI.niceButton str onClick (Just icon)
@@ -551,13 +540,6 @@ viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
 
             else
                 UI.modal
-
-        container =
-            if onMobile then
-                column
-
-            else
-                row
 
         totalWordCount =
             wordsFile.parts

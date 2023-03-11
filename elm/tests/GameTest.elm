@@ -1,10 +1,7 @@
 module GameTest exposing (..)
 
 import Dict
-import Expect exposing (Expectation)
-import Fuzz exposing (Fuzzer, int, list, string)
-import List.Extra as List
-import Main
+import Expect
 import Test exposing (..)
 import Training
 import Words exposing (newWord)

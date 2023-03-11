@@ -102,11 +102,6 @@ excludedHanzi =
 multiChainGenerator : Int -> Int -> List Word -> Random.Generator WordChain
 multiChainGenerator maximumAmount maximumSubChainLength dictionary =
     let
-        randomSimilarWordFrom : List Word -> List Word -> Random.Generator ( Maybe Word, List Word )
-        randomSimilarWordFrom words dict =
-            similarWordsList words dict
-                |> Random.List.choose
-
         dictionaryWithoutWord : List Word -> Word -> List Word
         dictionaryWithoutWord dict word =
             List.remove word dict

@@ -1,9 +1,6 @@
 module Icons exposing (..)
 
 import Element exposing (..)
-import Element.Events
-import Html exposing (Html)
-import Html.Attributes
 import Svg
 import Svg.Attributes
 

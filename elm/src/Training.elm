@@ -1,22 +1,15 @@
 module Training exposing (..)
 
 import Backend
-import Browser
 import Browser.Dom
-import Browser.Events
 import Common
-import Dict exposing (Dict)
+import Dict
 import Element exposing (..)
 import Element.Background as Background
-import Element.Border as Border
-import Element.Events
 import Element.Font as Font
-import Element.Input as Input
 import Element.Lazy
 import Help
-import Html
 import Html.Attributes
-import Html.Events
 import Icons
 import Json.Decode
 import Json.Encode
@@ -24,13 +17,11 @@ import List.Extra as List
 import MobileUI
 import Process
 import Random
-import Random.List
 import Set
 import Storage
 import String.Extra as String
 import Task
 import Time
-import Tones exposing (..)
 import UI
 import Utils exposing (..)
 import WordChain exposing (WordChain)
@@ -412,7 +403,7 @@ update uuid dictionaries activeDicts msg model =
         ( Ready game, OnMouseLeaveCharacter ) ->
             ( Ready { game | showPopupForCharacter = Nothing }, Cmd.none )
 
-        ( Ready game, OnTick now ) ->
+        ( Ready game, OnTick _ ) ->
             let
                 withUpdateShowTodo m =
                     if m.showTodoUpdateTimer > 0 then
@@ -547,13 +538,6 @@ viewGame device dictionaries activeDicts game =
                 [ viewDictionaryModal onMobile dictionaries activeDicts game
                 , Help.view game.showHelp onMobile OnToggleHelp NoOpString
                 ]
-
-        contentSpacing =
-            if onMobile then
-                10
-
-            else
-                20
     in
     Common.viewContainer onMobile
         True
@@ -595,25 +579,25 @@ viewGame device dictionaries activeDicts game =
 
 viewDictionaryModal : Bool -> Dictionaries -> List String -> GameModel -> Element Msg
 viewDictionaryModal onMobile dictionaries activeDicts game =
-    let
-        modalFn =
-            if onMobile then
-                MobileUI.modal
-
-            else
-                UI.modal
-
-        minSize =
-            if onMobile then
-                300
-
-            else
-                600
-
-        remaining =
-            wordsToGo dictionaries activeDicts game.wordsFound
-    in
     if game.showDictionaryModal then
+        let
+            modalFn =
+                if onMobile then
+                    MobileUI.modal
+
+                else
+                    UI.modal
+
+            minSize =
+                if onMobile then
+                    300
+
+                else
+                    600
+
+            remaining =
+                wordsToGo dictionaries activeDicts game.wordsFound
+        in
         modalFn OnToggleDictionaryModal
             [ row [ width <| minimum minSize fill ]
                 [ el [ alignLeft ] <| UI.heading "Words:"
@@ -685,7 +669,7 @@ viewTopBar onMobile dictionaries activeDicts game =
     let
         buttonFn =
             if onMobile then
-                \str onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
+                \_ onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
 
             else
                 \str onClick icon -> UI.niceButton str onClick (Just icon)
@@ -780,20 +764,22 @@ viewSingleHanzi onMobile game wordId id character =
         known =
             isCharacterKnown character game.answers
 
-        similar =
-            isCharacterSimilar character game.answers
-
         state =
             case game.gameState of
                 NotDone ->
                     if known then
                         WordChain.Known
 
-                    else if similar then
-                        WordChain.Similar
-
                     else
-                        WordChain.Unknown
+                        let
+                            similar =
+                                isCharacterSimilar character game.answers
+                        in
+                        if similar then
+                            WordChain.Similar
+
+                        else
+                            WordChain.Unknown
 
                 _ ->
                     WordChain.Show known

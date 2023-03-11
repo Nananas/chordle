@@ -1,17 +1,14 @@
 module Help exposing (..)
 
-import Dict
 import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
-import Element.Events
 import Element.Font as Font
 import Element.Input as Input
 import Icons
 import MobileUI
 import Tones exposing (..)
 import UI
-import Words exposing (allWords)
 
 
 view : Bool -> Bool -> msg -> (String -> msg) -> Element msg

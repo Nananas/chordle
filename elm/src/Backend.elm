@@ -1,9 +1,7 @@
 module Backend exposing (..)
 
 import DailyProgress exposing (..)
-import Dict exposing (Dict)
 import Http
-import Json.Decode
 import Json.Encode
 import Words
 

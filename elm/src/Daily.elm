@@ -6,14 +6,12 @@ import Clipboard
 import Common
 import DailyProgress exposing (..)
 import Date
-import Dict exposing (Dict)
+import Dict
 import Dict.Extra as Dict
 import Element exposing (..)
 import Element.Background
 import Element.Border
-import Element.Events
 import Element.Font
-import Element.Input
 import Help
 import Html.Attributes
 import Icons
@@ -27,8 +25,6 @@ import Random.List
 import Storage exposing (Storage)
 import String.Extra as String
 import Task
-import Time
-import Time.Extra as Time
 import UI
 import Utils
 import WordChain exposing (WordChain)
@@ -225,7 +221,7 @@ parseProgress storage =
             Json.Decode.field "progress" (Json.Decode.dict dayProgressDecoder)
     in
     case Json.Decode.decodeValue decoder storage of
-        Err err ->
+        Err _ ->
             Dict.empty
 
         Ok progress ->
@@ -549,7 +545,7 @@ viewHistoryModal onMobile game =
             game.progress
                 |> Dict.toList
                 |> List.foldl
-                    (\( r, dp ) acc ->
+                    (\( _, dp ) acc ->
                         case dp of
                             Succeeded ->
                                 { acc | successes = acc.successes + 1 }
@@ -868,26 +864,27 @@ viewGameOverShare endScore today state =
 
         intoRows s =
             recurse [] s
-
-        shareText =
-            "Chordle"
-                ++ "\n"
-                ++ Date.format "dd-MMM-yyyy" today
-                ++ "\n"
-                ++ dayProgressToEmoji progress
-                ++ " "
-                ++ (String.fromInt <| List.length endScore.attempts)
-                ++ "/"
-                ++ String.fromInt endScore.mistakes
-                ++ "\n"
-                ++ (endScore.attempts
-                        |> List.map square
-                        |> intoRows
-                        |> String.join "\n"
-                   )
     in
     case state of
-        First success ->
+        First _ ->
+            let
+                shareText =
+                    "Chordle"
+                        ++ "\n"
+                        ++ Date.format "dd-MMM-yyyy" today
+                        ++ "\n"
+                        ++ dayProgressToEmoji progress
+                        ++ " "
+                        ++ (String.fromInt <| List.length endScore.attempts)
+                        ++ "/"
+                        ++ String.fromInt endScore.mistakes
+                        ++ "\n"
+                        ++ (endScore.attempts
+                                |> List.map square
+                                |> intoRows
+                                |> String.join "\n"
+                           )
+            in
             column [ centerX, UI.floating, padding 10, spacing 10 ]
                 [ text shareText
                 , UI.niceButton "Copy" (OnShareClicked shareText) Nothing
