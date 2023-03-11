@@ -489,7 +489,6 @@ formattedNumberEnglish : Int -> String
 formattedNumberEnglish number =
     numberToParts englishLanguage number
         |> String.join " "
-        |> Debug.log "???"
 
 
 type alias LanguageParts =
@@ -500,10 +499,6 @@ type alias LanguageParts =
 
 numberToParts : LanguageParts -> Int -> List String
 numberToParts language number =
-    let
-        _ =
-            Debug.log " NUMBER " number
-    in
     if number == 0 then
         []
 
@@ -527,10 +522,6 @@ numberToParts language number =
                     |> List.foldl
                         (\( min, char ) ( n, acc ) ->
                             if n == min then
-                                let
-                                    _ =
-                                        Debug.log "HERE" min
-                                in
                                 if min >= 10 then
                                     ( n - min, acc ++ [ language.bindChar, char ] )
 
@@ -540,24 +531,19 @@ numberToParts language number =
                             else if n >= min then
                                 let
                                     factor =
-                                        n
-                                            // min
-                                            |> Debug.log "factor"
+                                        n // min
 
                                     remaining =
                                         n - factor * min
 
-                                    _ =
-                                        Debug.log "??" ( acc, n, min )
-
                                     factorChar =
                                         if n < 100 && factor == 1 && List.length acc == 0 then
-                                            [] |> Debug.log "skip"
+                                            []
 
                                         else
                                             numberToParts language factor
                                 in
-                                ( remaining, acc ++ factorChar ++ [ char ] ) |> Debug.log "step"
+                                ( remaining, acc ++ factorChar ++ [ char ] )
 
                             else
                                 ( n, acc )
