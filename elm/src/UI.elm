@@ -124,12 +124,14 @@ niceToggleButton text onClick mIcon state =
         (mouseOver
             [ Element.Background.color accentColorHighlight ]
             :: (if state == True then
-                    []
+                    [ Element.Background.color accentColor ]
 
                 else
-                    [ Element.Font.strike
-                    ]
+                    [ Element.Background.color white, Element.Font.color accentColor ]
                )
+            ++ [ Element.Border.width 2
+               , Element.Border.color accentColor
+               ]
         )
         text
         onClick

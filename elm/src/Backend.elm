@@ -111,7 +111,7 @@ postTrainingFinished uuid activeDicts { gameStats } =
         }
 
 
-postNumbersRoundEnd uuid number =
+postNumbersRoundEnd uuid number modeStr =
     let
         body =
             Json.Encode.object
@@ -120,7 +120,7 @@ postNumbersRoundEnd uuid number =
                 , ( "details"
                   , Json.Encode.object
                         [ ( "number", Json.Encode.int number )
-                        , ( "mode", Json.Encode.string "en-ch" )
+                        , ( "mode", Json.Encode.string modeStr )
                         ]
                   )
                 ]

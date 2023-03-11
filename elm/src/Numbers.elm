@@ -5,10 +5,12 @@ import Common
 import Element exposing (..)
 import Element.Background as Background
 import Element.Font
+import EverySet exposing (EverySet)
 import Icons
 import List.Extra as List
 import MobileUI
 import Random
+import Random.List
 import Tones exposing (Tone(..))
 import UI
 import Utils exposing (..)
@@ -16,20 +18,30 @@ import WordChain
 import Words exposing (PinyinPart)
 
 
+
+-- TODO:
+--   * Fractional values: 2/3:
+--     三分之二
+--     sān fēn zhī èr
+--   * interior zeros: 10500:
+--     一万〇五百
+
+
 type Model
-    = Initializing
+    = Generating GameModes NumberTypes
     | Ready GameModel
 
 
 type Msg
     = OnClickedHome
-    | NewNumber Int
+    | NewGeneration ( GameMode, Int )
     | NextRound
     | UserPressedEnter
     | OnMouseLeaveCharacter
     | OnMouseEnterCharacter ( Int, Int )
     | OnToggleHelp
     | BackendMsg Backend.Msg
+    | OnClickedToggleGameMode GameMode
 
 
 type alias GameModel =
@@ -39,57 +51,99 @@ type alias GameModel =
     , roundEnd : Bool
     , showPopupForCharacter : Maybe ( Int, Int )
     , showHelp : Bool
+    , gameModesEnabled : GameModes
+    , numberTypes : List NumberType
+    , roundGameMode : GameMode
     }
 
 
+type GameMode
+    = NumCh
+    | ChNum
+    | EnCh
+    | ChEn
+
+
+type alias GameModes =
+    EverySet GameMode
+
+
+type NumberType
+    = FullDecimal
+
+
+type alias NumberTypes =
+    List NumberType
+
+
+allGameModes =
+    EverySet.fromList [ NumCh, ChNum, EnCh, ChEn ]
+
+
+init : ( Model, Cmd Msg )
 init =
-    ( Initializing, cmdRandomNumber )
+    ( Generating allGameModes [ FullDecimal ], cmdRandomNumberAndMode allGameModes )
 
 
-initReady number =
+initReady : Int -> GameModes -> List NumberType -> GameMode -> Model
+initReady number gameModes numberModes roundMode =
     Ready
         { number = number
-        , hanzi = numberToHanzi number
+        , hanzi = numberToParts hanziLanguage number
         , errorMsg = Nothing
         , roundEnd = False
         , showPopupForCharacter = Nothing
         , showHelp = False
+        , gameModesEnabled = gameModes
+        , numberTypes = numberModes
+        , roundGameMode = roundMode
         }
 
 
-cmdRandomNumber =
+fullDecimalGenerator =
     let
         firstGen =
-            Random.int 0 9
+            Random.int 1 9
 
         secondGen =
             Random.int 0 9
 
         zerosGen =
-            Random.int 0 9
-
-        numberGen =
-            Random.map3
-                (\first second zeros ->
-                    (first * 10 + second) * 10 ^ zeros
-                )
-                firstGen
-                secondGen
-                zerosGen
+            Random.int 1 9
     in
-    Random.generate NewNumber numberGen
+    Random.map3
+        (\first second zeros ->
+            (first * 10 + second) * 10 ^ zeros
+        )
+        firstGen
+        secondGen
+        zerosGen
 
 
+gameModeGenerator : GameModes -> Random.Generator GameMode
+gameModeGenerator modes =
+    modes
+        |> EverySet.toList
+        |> Random.List.choose
+        |> Random.map (\( me, _ ) -> me |> Maybe.withDefault NumCh)
+
+
+cmdRandomNumberAndMode : GameModes -> Cmd Msg
+cmdRandomNumberAndMode modes =
+    Random.generate NewGeneration (Random.pair (gameModeGenerator modes) fullDecimalGenerator)
+
+
+update : Backend.Uuid -> Msg -> Model -> ( Model, Cmd Msg )
 update uuid msg model =
     case ( model, msg ) of
-        ( Initializing, NewNumber number ) ->
-            ( initReady number, Cmd.none )
+        ( Generating gmodes nmodes, NewGeneration ( roundMode, number ) ) ->
+            ( initReady number gmodes nmodes roundMode, Cmd.none )
 
-        ( Initializing, _ ) ->
+        ( Generating _ _, _ ) ->
             ( model, Cmd.none )
 
         ( Ready game, NextRound ) ->
-            ( model, cmdRandomNumber )
+            ( model, cmdRandomNumberAndMode game.gameModesEnabled )
 
         ( Ready game, OnClickedHome ) ->
             ( model, Cmd.none )
@@ -97,16 +151,33 @@ update uuid msg model =
         ( Ready game, OnToggleHelp ) ->
             ( Ready { game | showHelp = not game.showHelp }, Cmd.none )
 
-        ( Ready game, NewNumber number ) ->
-            ( Ready { game | number = number, hanzi = numberToHanzi number }, Cmd.none )
+        ( Ready game, NewGeneration ( roundMode, number ) ) ->
+            ( Ready { game | number = number, hanzi = numberToParts hanziLanguage number, roundGameMode = roundMode }, Cmd.none )
+
+        ( Ready game, OnClickedToggleGameMode gameMode ) ->
+            let
+                newModes =
+                    if EverySet.member gameMode game.gameModesEnabled then
+                        if EverySet.size game.gameModesEnabled > 1 then
+                            EverySet.remove gameMode game.gameModesEnabled
+
+                        else
+                            allGameModes
+
+                    else
+                        EverySet.insert gameMode game.gameModesEnabled
+            in
+            ( Generating newModes game.numberTypes
+            , cmdRandomNumberAndMode newModes
+            )
 
         ( Ready game, UserPressedEnter ) ->
             if game.roundEnd then
-                ( Initializing
+                ( Generating game.gameModesEnabled game.numberTypes
                 , Cmd.batch
-                    [ Backend.postNumbersRoundEnd uuid game.number
+                    [ Backend.postNumbersRoundEnd uuid game.number (gameModeAsShortString game.roundGameMode)
                         |> Cmd.map BackendMsg
-                    , cmdRandomNumber
+                    , cmdRandomNumberAndMode game.gameModesEnabled
                     ]
                 )
 
@@ -132,7 +203,7 @@ view device model =
     column [ width fill, height fill ]
         [ viewTopBar onMobile model
         , case model of
-            Initializing ->
+            Generating _ _ ->
                 UI.spinner
 
             Ready game ->
@@ -175,6 +246,36 @@ viewTopBar onMobile model =
         ]
 
 
+shownQuestionNumber game =
+    case game.roundGameMode of
+        NumCh ->
+            formattedNumberRaw game.number
+
+        EnCh ->
+            formattedNumberEnglish game.number
+
+        ChNum ->
+            String.join "" game.hanzi
+
+        ChEn ->
+            String.join "" game.hanzi
+
+
+showAnswerNumber game =
+    case game.roundGameMode of
+        NumCh ->
+            String.join "" game.hanzi
+
+        EnCh ->
+            String.join "" game.hanzi
+
+        ChNum ->
+            formattedNumberRaw game.number
+
+        ChEn ->
+            formattedNumberEnglish game.number
+
+
 viewGame : Bool -> GameModel -> Element Msg
 viewGame onMobile game =
     let
@@ -192,12 +293,37 @@ viewGame onMobile game =
             else
                 none
     in
-    el [ width fill, height fill, inFront modal ] <|
-        column [ centerX, centerY, spacing 50 ]
-            [ UI.niceTextWith [ centerX ] "How to write this number in 中文?"
-            , UI.headingWith [ Element.Font.size 32 ] <| formattedNumber game.number
+    column [ width fill, height fill, inFront modal, padding 20 ]
+        [ viewGameModes game
+        , column [ centerX, centerY, spacing 50 ]
+            [ UI.niceTextWith [ centerX ] <|
+                case game.roundGameMode of
+                    EnCh ->
+                        "How to write this number using 中文?"
+
+                    NumCh ->
+                        "How to write this number using 中文?"
+
+                    ChEn ->
+                        "How to write this number in English?"
+
+                    ChNum ->
+                        "How to write this number using Arabic numerals?"
+            , UI.headingWith [ Element.Font.size 32 ] <|
+                shownQuestionNumber game
             , if game.roundEnd then
-                viewHanzi onMobile game.hanzi game.showPopupForCharacter 0
+                case game.roundGameMode of
+                    EnCh ->
+                        viewHanzi onMobile game.hanzi game.showPopupForCharacter 0
+
+                    NumCh ->
+                        viewHanzi onMobile game.hanzi game.showPopupForCharacter 0
+
+                    ChNum ->
+                        UI.headingWith [ Element.Font.size 32 ] <| formattedNumberRaw game.number
+
+                    ChEn ->
+                        UI.headingWith [ Element.Font.size 32 ] <| formattedNumberEnglish game.number
 
               else
                 UI.niceTextWith
@@ -224,6 +350,47 @@ viewGame onMobile game =
                 UserPressedEnter
                 Nothing
             ]
+        ]
+
+
+gameModeAsString mode =
+    case mode of
+        EnCh ->
+            "En → 中文"
+
+        NumCh ->
+            "123 → 中文"
+
+        ChNum ->
+            "中文 → 123"
+
+        ChEn ->
+            "中文 → En"
+
+
+gameModeAsShortString mode =
+    case mode of
+        EnCh ->
+            "en-ch"
+
+        NumCh ->
+            "num-ch"
+
+        ChNum ->
+            "ch-num"
+
+        ChEn ->
+            "ch-en"
+
+
+viewGameModes : GameModel -> Element Msg
+viewGameModes game =
+    row [ centerX, spacing 20 ]
+        [ UI.heading "Game modes:"
+        , [ EnCh, NumCh, ChNum, ChEn ]
+            |> List.map (\gm -> UI.niceToggleButton (gameModeAsString gm) (OnClickedToggleGameMode gm) Nothing (EverySet.member gm game.gameModesEnabled))
+            |> row [ spacing 20 ]
+        ]
 
 
 {-| wordId = 0 for game, wordId > 0 for help
@@ -278,7 +445,7 @@ viewHelp onMobile showPopupForCharacter =
             , reviewRow "百" "100" 100
             ]
         , column [ spacing 4 ]
-            [ reviewRow "二" "2" 2
+            [ reviewRow "兩" "2" 2
             , reviewRow "七" "7" 7
             , reviewRow "千" "1000" 1000
             ]
@@ -296,7 +463,7 @@ viewHelp onMobile showPopupForCharacter =
     ]
 
 
-formattedNumber number =
+formattedNumberRaw number =
     let
         format acc ns =
             case List.take 3 ns of
@@ -318,17 +485,141 @@ formattedNumber number =
         |> String.join " "
 
 
-characters =
-    [ ( 100000000, "亿" )
-    , ( 10000, "万" )
-    , ( 1000, "千" )
-    , ( 100, "百" )
-    , ( 10, "十" )
-    ]
+formattedNumberEnglish : Int -> String
+formattedNumberEnglish number =
+    numberToParts englishLanguage number
+        |> String.join " "
+        |> Debug.log "???"
 
 
-naturalCharacters =
-    [ "〇", "一", "二", "三", "四", "五", "六", "七", "八", "九" ]
+type alias LanguageParts =
+    { parts : List ( Int, String )
+    , bindChar : String
+    }
+
+
+numberToParts : LanguageParts -> Int -> List String
+numberToParts language number =
+    let
+        _ =
+            Debug.log " NUMBER " number
+    in
+    if number == 0 then
+        []
+
+    else if number < 10 then
+        language.parts
+            |> List.foldl
+                (\( n, char ) acc ->
+                    if n == number then
+                        char
+
+                    else
+                        acc
+                )
+                "?"
+            |> List.singleton
+
+    else
+        let
+            ( rest, str ) =
+                language.parts
+                    |> List.foldl
+                        (\( min, char ) ( n, acc ) ->
+                            if n == min then
+                                let
+                                    _ =
+                                        Debug.log "HERE" min
+                                in
+                                if min >= 10 then
+                                    ( n - min, acc ++ [ language.bindChar, char ] )
+
+                                else
+                                    ( n - min, acc ++ [ char ] )
+
+                            else if n >= min then
+                                let
+                                    factor =
+                                        n
+                                            // min
+                                            |> Debug.log "factor"
+
+                                    remaining =
+                                        n - factor * min
+
+                                    _ =
+                                        Debug.log "??" ( acc, n, min )
+
+                                    factorChar =
+                                        if n < 100 && factor == 1 && List.length acc == 0 then
+                                            [] |> Debug.log "skip"
+
+                                        else
+                                            numberToParts language factor
+                                in
+                                ( remaining, acc ++ factorChar ++ [ char ] ) |> Debug.log "step"
+
+                            else
+                                ( n, acc )
+                        )
+                        ( number, [] )
+        in
+        str ++ numberToParts language rest
+
+
+hanziLanguage =
+    { parts =
+        [ ( 100000000, "亿" )
+        , ( 10000, "万" )
+        , ( 1000, "千" )
+        , ( 100, "百" )
+        , ( 10, "十" )
+        , ( 9, "九" )
+        , ( 8, "八" )
+        , ( 7, "七" )
+        , ( 6, "六" )
+        , ( 5, "五" )
+        , ( 4, "四" )
+        , ( 3, "三" )
+        , ( 2, "兩" )
+        , ( 1, "一" )
+        ]
+    , bindChar = "一"
+    }
+
+
+englishLanguage =
+    { parts =
+        [ ( 1000000000, "billion" )
+        , ( 1000000, "million" )
+        , ( 1000, "thousand" )
+        , ( 100, "hundred" )
+        , ( 90, "ninety" )
+        , ( 80, "eighty" )
+        , ( 70, "seventy" )
+        , ( 60, "sixty" )
+        , ( 50, "fifty" )
+        , ( 40, "fourty" )
+        , ( 30, "thirty" )
+        , ( 20, "twenty" )
+        , ( 10, "ten" )
+        , ( 9, "nine" )
+        , ( 8, "eight" )
+        , ( 7, "seven" )
+        , ( 6, "six" )
+        , ( 5, "five" )
+        , ( 4, "four" )
+        , ( 3, "three" )
+        , ( 2, "two" )
+        , ( 1, "one" )
+        ]
+    , bindChar = "and"
+    }
+
+
+numeralFromList list number =
+    List.getAt number list
+        |> Maybe.withDefault "?"
 
 
 hanziToPinyinPart hanzi =
@@ -339,8 +630,8 @@ hanziToPinyinPart hanzi =
         "一" ->
             PinyinPart "yi" First
 
-        "二" ->
-            PinyinPart "er" Forth
+        "兩" ->
+            PinyinPart "liang" Third
 
         "三" ->
             PinyinPart "san" First
@@ -380,40 +671,3 @@ hanziToPinyinPart hanzi =
 
         _ ->
             PinyinPart "?" Fifth
-
-
-numberToHanzi : Int -> List String
-numberToHanzi number =
-    if number == 0 then
-        []
-
-    else if number < 10 then
-        List.getAt number naturalCharacters
-            |> Maybe.withDefault "?"
-            |> List.singleton
-
-    else
-        let
-            ( rest, str ) =
-                characters
-                    |> List.foldl
-                        (\( min, char ) ( n, acc ) ->
-                            if n >= min then
-                                let
-                                    factor =
-                                        n // min
-
-                                    remaining =
-                                        n - factor * min
-
-                                    factorChar =
-                                        numberToHanzi factor
-                                in
-                                ( remaining, acc ++ factorChar ++ [ char ] )
-
-                            else
-                                ( n, acc )
-                        )
-                        ( number, [] )
-        in
-        str ++ numberToHanzi rest
