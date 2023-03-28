@@ -17,7 +17,11 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Mar 11
+    [ ( Date.fromCalendarDate 2023 Mar 28
+      , "0.2.5"
+      , [ "Added 27 new words to CLT4 semester 2 Extra" ]
+      )
+    , ( Date.fromCalendarDate 2023 Mar 11
       , "0.2.4"
       , [ "Added English language mode to the Numbers game" ]
       )
