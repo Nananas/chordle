@@ -2,6 +2,7 @@ module Changelog exposing (..)
 
 import Date
 import Element exposing (..)
+import Element.Background
 import Element.Font
 import Icons
 import MobileUI
@@ -17,7 +18,11 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Mar 28
+    [ ( Date.fromCalendarDate 2023 Apr 5
+      , "0.2.6"
+      , [ "Various tone and translation fixes for CLT4 semester 2 (Extra)" ]
+      )
+    , ( Date.fromCalendarDate 2023 Mar 28
       , "0.2.5"
       , [ "Added 27 new words to CLT4 semester 2 Extra" ]
       )
@@ -54,7 +59,7 @@ view mStorageVersion onMobile toggleMsg =
                 UI.modal
     in
     modalFn toggleMsg
-        [ row [ centerX, spacing 20 ]
+        [ row [ centerX ]
             [ UI.heading "The Changelog:"
             ]
         , changelog
@@ -87,7 +92,8 @@ view mStorageVersion onMobile toggleMsg =
                             List.map (\txt -> text <| "•  " ++ txt) changes
                         ]
                 )
-            |> column [ padding 20, spacing 20, scrollbarY, height <| px 500, width fill ]
+            |> column [ centerX, padding 20, spacing 20, Element.Background.color UI.lightColor, UI.rounded 20 ]
+            |> el [ scrollbarY, height fill, width fill ]
         ]
 
 
