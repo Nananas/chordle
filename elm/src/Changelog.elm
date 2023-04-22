@@ -18,7 +18,13 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Apr 5
+    [ ( Date.fromCalendarDate 2023 Apr 22
+      , "0.2.7"
+      , [ "Added 14 new words to CLT4 semester 2 Extra"
+        , "Improved translations for 薄, 瘦 and 油彩."
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 Apr 5
       , "0.2.6"
       , [ "Various tone and translation fixes for CLT4 semester 2 (Extra)" ]
       )
