@@ -195,11 +195,6 @@ update uuid dictionaries activeDicts msg model =
                         |> Result.toMaybe
                         |> Maybe.withDefault []
 
-                dictionary =
-                    allWords activeDicts dictionaries
-                        |> List.filter
-                            (\word -> not <| List.member (wordHanzi word) wordsFound)
-
                 --wordsFoundDebug =
                 --allWords Dict.empty |> List.drop 1
                 --|> Debug.log "Debug stuff"
@@ -227,6 +222,12 @@ update uuid dictionaries activeDicts msg model =
                     }
 
             else
+                let
+                    dictionary =
+                        allWords activeDicts dictionaries
+                            |> List.filter
+                                (\word -> not <| List.member (wordHanzi word) wordsFound)
+                in
                 ( Initializing wordsFound gameStats
                 , Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
                 )
@@ -721,15 +722,15 @@ viewTopBar onMobile dictionaries activeDicts game =
                                         ++ String.fromInt u
             ]
           <|
-            Element.Lazy.lazy4 viewWordsToGo onMobile dictionaries activeDicts game.wordsFound
+            Element.Lazy.lazy3 viewWordsToGo dictionaries activeDicts game.wordsFound
         , el [ alignLeft ] <| buttonFn "Restart Game" OnRestartClick (Icons.refresh iconSize)
         , el [ alignRight ] <| buttonFn "Words" OnToggleDictionaryModal (Icons.translate iconSize)
         , buttonFn "Help" OnToggleHelp (Icons.questionmark iconSize)
         ]
 
 
-viewWordsToGo : Bool -> Words.Dictionaries -> List String -> List String -> Element Msg
-viewWordsToGo onMobile dictionaries activeDicts wordsFound =
+viewWordsToGo : Words.Dictionaries -> List String -> List String -> Element Msg
+viewWordsToGo dictionaries activeDicts wordsFound =
     UI.niceTextWith [ Font.color UI.white ] <|
         let
             total =
@@ -874,18 +875,6 @@ processRoundFinished uuid activeDicts game =
                         |> List.foldl
                             (\{ word } acc -> isWordFullyKnown word game.answers && acc)
                             True
-
-                wordsFound =
-                    List.foldl
-                        (\{ word } acc ->
-                            if List.member (wordHanzi word) acc then
-                                acc
-
-                            else
-                                wordHanzi word :: acc
-                        )
-                        game.wordsFound
-                        game.wordChain
             in
             if finished then
                 -- word round finished, we found all correctly
@@ -894,6 +883,18 @@ processRoundFinished uuid activeDicts game =
                         game.gameStats
                             |> withAddAttempts 1
                             |> withAddOneCorrect
+
+                    wordsFound =
+                        List.foldl
+                            (\{ word } acc ->
+                                if List.member (wordHanzi word) acc then
+                                    acc
+
+                                else
+                                    wordHanzi word :: acc
+                            )
+                            game.wordsFound
+                            game.wordChain
                 in
                 ( { game
                     | gameState = FilledInCorrectly

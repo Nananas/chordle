@@ -221,7 +221,7 @@ sortWords words =
                 |> Words.singleWordsList
 
         comp : ( Word, Int, Hanzi ) -> ( Word, Int, Hanzi ) -> Order
-        comp ( w1, i1, h1 ) ( w2, i2, h2 ) =
+        comp ( w1, _, _ ) ( w2, _, _ ) =
             let
                 s1 =
                     if List.member w1 singles then
