@@ -491,9 +491,15 @@ formattedNumberEnglish number =
         |> String.join " "
 
 
+formattedNumberHanzi : Int -> String
+formattedNumberHanzi number =
+    numberToParts hanziLanguage number
+        |> String.join " "
+
+
 type alias LanguageParts =
     { parts : List ( Int, String )
-    , bindChar : String
+    , factorChar : Int -> Int -> List String -> List String
     }
 
 
@@ -521,14 +527,7 @@ numberToParts language number =
                 language.parts
                     |> List.foldl
                         (\( min, char ) ( n, acc ) ->
-                            if n == min then
-                                if min >= 10 then
-                                    ( n - min, acc ++ [ language.bindChar, char ] )
-
-                                else
-                                    ( n - min, acc ++ [ char ] )
-
-                            else if n >= min then
+                            if n >= min then
                                 let
                                     factor =
                                         n // min
@@ -537,11 +536,7 @@ numberToParts language number =
                                         n - factor * min
 
                                     factorChar =
-                                        if n < 100 && factor == 1 && List.length acc == 0 then
-                                            []
-
-                                        else
-                                            numberToParts language factor
+                                        language.factorChar factor min acc
                                 in
                                 ( remaining, acc ++ factorChar ++ [ char ] )
 
@@ -567,10 +562,20 @@ hanziLanguage =
         , ( 5, "五" )
         , ( 4, "四" )
         , ( 3, "三" )
-        , ( 2, "兩" )
+        , ( 2, "二" )
         , ( 1, "一" )
         ]
-    , bindChar = "一"
+    , factorChar =
+        \factor min acc ->
+            if
+                factor
+                    == 2
+                    && (min == 100 || min == 1000 || min == 10000)
+            then
+                [ "两" ]
+
+            else
+                numberToParts hanziLanguage factor
     }
 
 
@@ -588,6 +593,15 @@ englishLanguage =
         , ( 40, "fourty" )
         , ( 30, "thirty" )
         , ( 20, "twenty" )
+        , ( 19, "nineteen" )
+        , ( 18, "eighteen" )
+        , ( 17, "seventeen" )
+        , ( 16, "sixteen" )
+        , ( 15, "fifteen" )
+        , ( 14, "fourteen" )
+        , ( 13, "thirteen" )
+        , ( 12, "twelve" )
+        , ( 11, "eleven" )
         , ( 10, "ten" )
         , ( 9, "nine" )
         , ( 8, "eight" )
@@ -599,7 +613,17 @@ englishLanguage =
         , ( 2, "two" )
         , ( 1, "one" )
         ]
-    , bindChar = "and"
+    , factorChar =
+        \factor min acc ->
+            if min < 100 then
+                if List.length acc <= 1 then
+                    []
+
+                else
+                    [ "and" ]
+
+            else
+                numberToParts englishLanguage factor
     }
 
 
