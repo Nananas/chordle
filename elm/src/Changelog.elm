@@ -18,7 +18,12 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 May 14
+    [ ( Date.fromCalendarDate 2023 May 22
+      , "0.2.10"
+      , [ "Added 6 new words to CLT4 semester 2 Extra"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 May 14
       , "0.2.9"
       , [ "Fix various issues with English in the Numbers game."
         , "Fixed issues with 二/两 in the Numbers game"
