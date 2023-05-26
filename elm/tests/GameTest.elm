@@ -1,9 +1,13 @@
 module GameTest exposing (..)
 
+import Daily
 import Dict
 import Expect
+import Random
+import Random.List
 import Test exposing (..)
 import Training
+import WordChain
 import Words exposing (newWord)
 
 
@@ -37,8 +41,26 @@ suite =
                   )
                 ]
     in
-    describe "End to end"
-        [ test "TODO" <| \_ -> Expect.equal 1 1
+    describe "Game"
+        [ test "random orphan doubles 1" <|
+            \_ ->
+                let
+                    seed =
+                        Random.initialSeed 4
+
+                    dictionary =
+                        [ newWord "啊" "a5" "INTERJECTION: Ah, oh"
+                        , newWord "爱" "ai4" "VERB: to love"
+                        ]
+
+                    wordChain =
+                        Daily.genWordChain 1 seed dictionary dictionary
+                in
+                wordChain
+                    |> Expect.equal
+                        [ WordChain.WordChainWord (newWord "爱" "ai4" "VERB: to love") 0 True
+                        , WordChain.WordChainWord (newWord "啊" "a5" "INTERJECTION: Ah, oh") 0 True
+                        ]
 
         --test "Words to go 1" <|
         --    \_ ->

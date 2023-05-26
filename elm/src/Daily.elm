@@ -258,6 +258,42 @@ updateProgressInStorage today dayProgress progress =
         }
 
 
+genWordChain : Int -> Random.Seed -> List Word -> List Word -> WordChain
+genWordChain count seed dictionary wordsWithoutConnection =
+    let
+        chainMaxLength =
+            count // 2 + 1
+
+        ( wordChain, _ ) =
+            WordChain.multiChainGenerator count chainMaxLength dictionary
+                |> Random.andThen
+                    (\wc ->
+                        let
+                            wcOnlyWords =
+                                wc
+                                    |> List.map .word
+                        in
+                        wordsWithoutConnection
+                            |> List.filter (\w -> not <| List.member w wcOnlyWords)
+                            |> Random.List.choose
+                            |> Random.map
+                                (\( mW, _ ) ->
+                                    case mW of
+                                        Nothing ->
+                                            Debug.log "none" wc
+
+                                        Just w ->
+                                            wc ++ [ WordChain.WordChainWord w 0 True ]
+                                )
+                    )
+                |> (\g -> Random.step g seed)
+
+        --)
+        --seed
+    in
+    wordChain
+
+
 update : Backend.Uuid -> Words.Dictionaries -> List String -> Msg -> Model -> ( Model, Cmd Msg )
 update uuid dictionaries activeDicts msg model =
     case ( model, msg ) of
@@ -276,21 +312,8 @@ update uuid dictionaries activeDicts msg model =
                 wordsWithoutConnection =
                     singleWordsList dictionary
 
-                ( wordChain, _ ) =
-                    Random.step
-                        (Random.map2
-                            (\ws ( mW, _ ) ->
-                                case mW of
-                                    Nothing ->
-                                        ws
-
-                                    Just w ->
-                                        ws ++ [ WordChain.WordChainWord w 0 True ]
-                            )
-                            (WordChain.multiChainGenerator 11 6 dictionary)
-                            (Random.List.choose wordsWithoutConnection)
-                        )
-                        seed
+                wordChain =
+                    genWordChain 11 seed dictionary wordsWithoutConnection
 
                 progress =
                     parseProgress storage.json
