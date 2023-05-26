@@ -280,7 +280,7 @@ genWordChain count seed dictionary wordsWithoutConnection =
                                 (\( mW, _ ) ->
                                     case mW of
                                         Nothing ->
-                                            Debug.log "none" wc
+                                            wc
 
                                         Just w ->
                                             wc ++ [ WordChain.WordChainWord w 0 True ]
