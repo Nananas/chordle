@@ -47,7 +47,7 @@ type Msg
     | OnResizeViewport Int Int
     | UUIDGenerated String
     | OnStorageLoaded Storage.Storage
-    | OnGetWords Backend.GetWordsResponse
+    | OnGetBackend (Result Backend.Error ( Words.WordsFile, Backend.PageStats ))
     | ClickedToggleDictionary String Bool
     | ClickedToggleDictionaryModal
     | ClickedToggleChangelog
@@ -75,13 +75,14 @@ type alias Model =
     , showingCurrentDictionaryIndex : Int
     , showChangelogModal : Bool
     , oldChangelogVersion : Maybe String
+    , pageStats : Maybe Backend.PageStats
     }
 
 
 type State
     = LoadingId
     | LoadingViewport
-    | LoadingWords
+    | LoadingBackend
     | LoadingActiveDicts
     | LoadingSettings
     | ChooseGameType
@@ -106,6 +107,7 @@ init _ =
       , showingCurrentDictionaryIndex = 0
       , showChangelogModal = False
       , oldChangelogVersion = Nothing
+      , pageStats = Nothing
       }
     , Storage.loadStorage "id"
     )
@@ -216,18 +218,23 @@ update msg model =
             else
                 ( model, Cmd.none )
 
-        ( OnGetWords (Ok wordsFile), LoadingWords ) ->
+        ( OnGetBackend (Ok ( wordsFile, pageStats )), LoadingBackend ) ->
             ( { model
                 | wordsFile = wordsFile
                 , state = LoadingActiveDicts
+                , pageStats = Just pageStats
               }
             , Storage.loadStorage "active-dicts"
             )
 
-        ( OnGetWords (Err _), LoadingWords ) ->
-            ( { model | state = Error "I could not load the dictionaries." }, Cmd.none )
+        ( OnGetBackend (Err err), LoadingBackend ) ->
+            ( { model
+                | state = Error ("Could not load data: " ++ err)
+              }
+            , Cmd.none
+            )
 
-        ( OnGetWords _, _ ) ->
+        ( OnGetBackend _, _ ) ->
             ( model, Cmd.none )
 
         -- Forward storage subscriptions
@@ -256,9 +263,9 @@ update msg model =
         ( OnGetViewport { viewport }, _ ) ->
             ( { model
                 | device = classifyViewport viewport
-                , state = LoadingWords
+                , state = LoadingBackend
               }
-            , Backend.getWords OnGetWords
+            , fetchBackend
             )
 
         ( OnResizeViewport width height, _ ) ->
@@ -364,6 +371,13 @@ update msg model =
             ( model, Cmd.none )
 
 
+fetchBackend =
+    Task.map2 Tuple.pair
+        Backend.getWords
+        Backend.getPageStats
+        |> Task.attempt OnGetBackend
+
+
 setStateIn model ( state, cmd ) =
     ( { model | state = state }, cmd )
 
@@ -431,7 +445,7 @@ view model =
 
 
 viewChooseGameType : Bool -> Model -> Element Msg
-viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showingCurrentDictionaryIndex, showChangelogModal, oldChangelogVersion } =
+viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showingCurrentDictionaryIndex, showChangelogModal, oldChangelogVersion, pageStats } =
     let
         modal =
             if showDictionaryModal then
@@ -469,6 +483,18 @@ viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showi
                         ]
                     ]
                 ]
+        , case pageStats of
+            Just stats ->
+                el [ width fill, height shrink, padding 30 ] <|
+                    column [ centerX, spacing 10 ]
+                        [ UI.niceText "Global number of games played:"
+                        , UI.niceTextWith [ Font.size 18 ] <| "Daily: " ++ String.fromInt stats.dailyCount
+                        , UI.niceTextWith [ Font.size 18 ] <| "Training: " ++ String.fromInt stats.trainingCount
+                        , UI.niceTextWith [ Font.size 18 ] <| "Numbers: " ++ String.fromInt stats.numbersCount
+                        ]
+
+            _ ->
+                none
         ]
 
 

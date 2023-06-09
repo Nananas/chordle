@@ -12,6 +12,7 @@ use rocket::serde::json::Json;
 use rocket_db_pools::sqlx;
 use rocket_db_pools::{Connection, Database};
 use serde_json::to_string;
+use sqlx::FromRow;
 use std::path::Path;
 
 mod catchers {
@@ -66,6 +67,47 @@ async fn route_event(mut db: Connection<Db>, page_event: Json<PageEvent>) -> (St
     }
 }
 
+#[get("/stats")]
+async fn route_stats(mut db: Connection<Db>) -> (Status, String) {
+    let mut daily_count = 0;
+    let mut training_count = 0;
+    let mut numbers_count = 0;
+
+    #[derive(FromRow)]
+    struct PageStatsRow {
+        page: String,
+        count: i64,
+    }
+
+    let stat_result =
+        sqlx::query_as::<_, PageStatsRow>("select page, count(*) from page_events group by page")
+            .fetch_all(&mut *db)
+            .await;
+
+    match stat_result {
+        Ok(rows) => {
+            for row in rows {
+                match row.page.as_str() {
+                    "daily" => daily_count = row.count,
+                    "training" => training_count = row.count,
+                    "numbers" => numbers_count = row.count,
+                    _ => {}
+                }
+            }
+
+            match to_string(&PageStats {
+                daily_count: daily_count,
+                training_count: training_count,
+                numbers_count: numbers_count,
+            }) {
+                Ok(s) => (Status::Ok, s),
+                Err(e) => (Status::InternalServerError, e.to_string()),
+            }
+        }
+        Err(err) => (Status::InternalServerError, err.to_string()),
+    }
+}
+
 // This launch macro will generate a main which will setup an async tokio runtime
 #[launch]
 fn rocket() -> _ {
@@ -75,7 +117,7 @@ fn rocket() -> _ {
             "/",
             FileServer::new(Path::new("./static"), Options::None | Options::Index),
         )
-        .mount("/", routes![route_event])
+        .mount("/", routes![route_event, route_stats])
         .register(
             "/",
             catchers![

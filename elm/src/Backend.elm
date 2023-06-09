@@ -2,6 +2,7 @@ module Backend exposing (..)
 
 import DailyProgress exposing (..)
 import Http
+import Json.Decode
 import Json.Encode
 import Words
 
@@ -134,8 +135,65 @@ type alias GetWordsResponse =
     Result Http.Error Words.WordsFile
 
 
-getWords msg =
-    Http.get
-        { url = "dictionaries.json"
-        , expect = Http.expectJson msg Words.wordsFileDecoder
+getWords =
+    Http.task
+        { method = "GET"
+        , headers = []
+        , url = "dictionaries.json"
+        , body = Http.emptyBody
+        , resolver = Http.stringResolver <| handleJsonResponse <| Words.wordsFileDecoder
+        , timeout = Nothing
         }
+
+
+type alias PageStats =
+    { dailyCount : Int
+    , trainingCount : Int
+    , numbersCount : Int
+    }
+
+
+pageStatsDecoder =
+    Json.Decode.map3 PageStats
+        (Json.Decode.field "daily_count" Json.Decode.int)
+        (Json.Decode.field "training_count" Json.Decode.int)
+        (Json.Decode.field "numbers_count" Json.Decode.int)
+
+
+getPageStats =
+    Http.task
+        { method = "GET"
+        , headers = []
+        , url = "stats"
+        , body = Http.emptyBody
+        , resolver = Http.stringResolver <| handleJsonResponse <| pageStatsDecoder
+        , timeout = Nothing
+        }
+
+
+type alias Error =
+    String
+
+
+handleJsonResponse : Json.Decode.Decoder a -> Http.Response String -> Result Error a
+handleJsonResponse decoder response =
+    case response of
+        Http.BadUrl_ url ->
+            Err "Bad URL"
+
+        Http.Timeout_ ->
+            Err "Timeout"
+
+        Http.BadStatus_ { statusCode } _ ->
+            Err ("Bad status (" ++ String.fromInt statusCode ++ ")")
+
+        Http.NetworkError_ ->
+            Err "Network error"
+
+        Http.GoodStatus_ _ body ->
+            case Json.Decode.decodeString decoder body of
+                Err _ ->
+                    Err "Bad JSON"
+
+                Ok result ->
+                    Ok result

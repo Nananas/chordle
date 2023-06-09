@@ -1,5 +1,6 @@
 // use rocket::serde::{Deserialize, Serialize};
 use serde::{Deserialize, Serialize};
+use sqlx::FromRow;
 
 #[derive(PartialEq, Debug, Serialize, Deserialize)]
 pub struct PageEvent {
@@ -52,6 +53,13 @@ pub struct TrainingRoundEvent {
 pub struct NumbersRoundEvent {
     mode: String,
     number: i64,
+}
+
+#[derive(Serialize, FromRow)]
+pub struct PageStats {
+    pub daily_count: i64,
+    pub training_count: i64,
+    pub numbers_count: i64,
 }
 
 #[cfg(test)]
