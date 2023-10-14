@@ -485,8 +485,43 @@ viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showi
                 ]
         , case pageStats of
             Just stats ->
-                el [ width fill, height shrink, padding 30 ] <|
-                    column [ centerX, spacing 10 ]
+                let
+                    totalActivity =
+                        stats.activity |> List.maximum |> Maybe.withDefault 0
+
+                    activityChart =
+                        stats.activity
+                            |> List.map
+                                (\a ->
+                                    column [ width fill, height fill ]
+                                        [ el
+                                            [ width <| fillPortion 1
+                                            , htmlAttribute <|
+                                                Html.Attributes.style "height"
+                                                    (String.fromFloat (toFloat a / toFloat totalActivity * 100) ++ "%")
+                                            , Background.color UI.accentColorLight
+                                            , alignBottom
+                                            , inFront <|
+                                                el
+                                                    [ mouseOver [ Font.color UI.accentColorHighlight ]
+                                                    , Font.color UI.accentColorLight
+                                                    , width fill
+                                                    , height fill
+                                                    ]
+                                                    (el
+                                                        [ centerX
+                                                        , centerY
+                                                        ]
+                                                        (text (String.fromInt a))
+                                                    )
+                                            ]
+                                            none
+                                        ]
+                                )
+                            |> row [ width fill, height fill, spacing 5 ]
+                in
+                el [ width fill, height shrink, padding 30, behindContent activityChart ] <|
+                    column [ centerX, spacing 10, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ]
                         [ UI.niceText "Global number of games played:"
                         , UI.niceTextWith [ Font.size 18 ] <| "Daily: " ++ String.fromInt stats.dailyCount
                         , UI.niceTextWith [ Font.size 18 ] <| "Training: " ++ String.fromInt stats.trainingCount

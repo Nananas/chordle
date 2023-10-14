@@ -60,6 +60,7 @@ pub struct PageStats {
     pub daily_count: i64,
     pub training_count: i64,
     pub numbers_count: i64,
+    pub page_events_per_day: Vec<i64>,
 }
 
 #[cfg(test)]

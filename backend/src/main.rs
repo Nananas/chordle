@@ -72,6 +72,7 @@ async fn route_stats(mut db: Connection<Db>) -> (Status, String) {
     let mut daily_count = 0;
     let mut training_count = 0;
     let mut numbers_count = 0;
+    let mut activity: Vec<i64>;
 
     #[derive(FromRow)]
     struct PageStatsRow {
@@ -94,17 +95,49 @@ async fn route_stats(mut db: Connection<Db>) -> (Status, String) {
                     _ => {}
                 }
             }
+        }
+        Err(err) => return (Status::InternalServerError, err.to_string()),
+    }
 
-            match to_string(&PageStats {
-                daily_count: daily_count,
-                training_count: training_count,
-                numbers_count: numbers_count,
-            }) {
-                Ok(s) => (Status::Ok, s),
-                Err(e) => (Status::InternalServerError, e.to_string()),
+    #[derive(FromRow)]
+    struct ActivityRow {
+        date: Option<String>,
+        count: i64,
+    }
+
+    // Timestamps are strings in DB (legacy from Gleam backend)...
+    let activity_result = sqlx::query_as::<_, ActivityRow>("select substring(timestamp FROM 1 FOR 10) as date, count(id) from page_events group by date order by date desc limit 30")
+        .fetch_all(&mut *db)
+        .await;
+
+    match activity_result {
+        Ok(rows) => {
+            activity = (0..30).map(|_| 0).collect();
+
+            for row in rows {
+                if let Some(date) = row
+                    .date
+                    .and_then(|d| chrono::NaiveDate::parse_from_str(&d, "%Y-%m-%d").ok())
+                {
+                    let index = (Utc::now().naive_utc().date() - date).num_days() as usize;
+                    if index < activity.len() {
+                        activity[index] = row.count;
+                    }
+                }
             }
         }
-        Err(err) => (Status::InternalServerError, err.to_string()),
+
+        Err(err) => return (Status::InternalServerError, err.to_string()),
+    }
+
+    match to_string(&PageStats {
+        daily_count: daily_count,
+        training_count: training_count,
+        numbers_count: numbers_count,
+        page_events_per_day: activity,
+    }) {
+        Ok(s) => (Status::Ok, s),
+        Err(e) => (Status::InternalServerError, e.to_string()),
     }
 }
 

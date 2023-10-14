@@ -150,14 +150,16 @@ type alias PageStats =
     { dailyCount : Int
     , trainingCount : Int
     , numbersCount : Int
+    , activity : List Int
     }
 
 
 pageStatsDecoder =
-    Json.Decode.map3 PageStats
+    Json.Decode.map4 PageStats
         (Json.Decode.field "daily_count" Json.Decode.int)
         (Json.Decode.field "training_count" Json.Decode.int)
         (Json.Decode.field "numbers_count" Json.Decode.int)
+        (Json.Decode.map (Maybe.withDefault []) <| Json.Decode.maybe (Json.Decode.field "page_events_per_day" (Json.Decode.list Json.Decode.int)))
 
 
 getPageStats =
