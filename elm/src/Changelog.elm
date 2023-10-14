@@ -18,7 +18,14 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 May 22
+    [ ( Date.fromCalendarDate 2023 Oct 14
+      , "0.3.0"
+      , [ "Added dictionaries CLT5 Semester 1 & Extra"
+        , "Added 130+ CLT5 semester 1 words!"
+        , "Added 30+ CLT5 semester 1 Extra words"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 May 22
       , "0.2.10"
       , [ "Added 6 new words to CLT4 semester 2 Extra"
         ]
