@@ -136,9 +136,9 @@ encodeGameStats gameStats =
 gameStatsDecoder =
     Json.Decode.map3
         GameStats
-        Json.Decode.int
-        Json.Decode.int
-        Json.Decode.int
+        (Json.Decode.field "correct" Json.Decode.int)
+        (Json.Decode.field "attempts" Json.Decode.int)
+        (Json.Decode.field "retries" Json.Decode.int)
 
 
 withDictionarySize size stats =
