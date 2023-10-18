@@ -18,7 +18,12 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Oct 14
+    [ ( Date.fromCalendarDate 2023 Oct 15
+      , "0.3.1"
+      , [ "Fixed issue with training stats not being loaded properly"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 Oct 14
       , "0.3.0"
       , [ "Added dictionaries CLT5 Semester 1 & Extra"
         , "Added 130+ CLT5 semester 1 words!"
