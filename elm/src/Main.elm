@@ -503,7 +503,8 @@ viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showi
                                             , alignBottom
                                             , inFront <|
                                                 el
-                                                    [ mouseOver [ Font.color UI.accentColorHighlight ]
+                                                    [ Font.size 0
+                                                    , mouseOver [ Font.color UI.accentColorHighlight, Font.size 20 ]
                                                     , Font.color UI.accentColorLight
                                                     , width fill
                                                     , height fill
