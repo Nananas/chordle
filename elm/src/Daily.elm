@@ -2,6 +2,7 @@ module Daily exposing (..)
 
 import Backend
 import Browser.Dom
+import Browser.Events
 import Clipboard
 import Common
 import DailyProgress exposing (..)
@@ -49,6 +50,7 @@ type Msg
     | NoOp
     | NoOpIntInt ( Int, Int )
     | UserPressedEnter
+    | UserPressedCtrlEnter
     | InputHanzi String
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
@@ -352,6 +354,9 @@ update uuid dictionaries activeDicts msg model =
                 in
                 processInput txt game
                     |> processRoundFinished uuid activeDicts
+
+        ( Playing game, UserPressedCtrlEnter ) ->
+            gameOver uuid activeDicts GiveUp game
 
         ( Playing game, OnGiveUpClicked ) ->
             gameOver uuid activeDicts GiveUp game
@@ -918,4 +923,4 @@ viewGameOverShare endScore today state =
 
 
 subscriptions =
-    Sub.none
+    Browser.Events.onKeyDown (Common.onCtrlEnter UserPressedCtrlEnter NoOp)

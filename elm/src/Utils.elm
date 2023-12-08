@@ -53,27 +53,6 @@ isOnMobile device =
     not <| isOnDesktop device
 
 
-
---
-
-
-onEnter : msg -> Element.Attribute msg
-onEnter msg =
-    htmlAttribute
-        (Html.Events.on "keyup"
-            (Json.Decode.field "key" Json.Decode.string
-                |> Json.Decode.andThen
-                    (\key ->
-                        if key == "Enter" then
-                            Json.Decode.succeed msg
-
-                        else
-                            Json.Decode.fail "Not the enter key"
-                    )
-            )
-        )
-
-
 indexedFind : (a -> Bool) -> List a -> Maybe ( Int, a )
 indexedFind =
     indexedFindHelp 0

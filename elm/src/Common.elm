@@ -6,6 +6,7 @@ import Element.Border
 import Element.Font
 import Element.Input
 import Html.Attributes
+import Json.Decode
 import List.Extra as List
 import MobileUI
 import UI
@@ -237,3 +238,16 @@ viewWordEnglish onMobile word =
                     [ text txt ]
             )
         |> column [ spacing 5, alignLeft ]
+
+
+onCtrlEnter msg noOp =
+    Json.Decode.map2
+        (\key ctrl ->
+            if key == "Enter" && ctrl then
+                msg
+
+            else
+                noOp
+        )
+        (Json.Decode.field "key" Json.Decode.string)
+        (Json.Decode.field "ctrlKey" Json.Decode.bool)

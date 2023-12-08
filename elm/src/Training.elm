@@ -2,6 +2,7 @@ module Training exposing (..)
 
 import Backend
 import Browser.Dom
+import Browser.Events
 import Common
 import Dict
 import Element exposing (..)
@@ -33,6 +34,7 @@ type Msg
     | NewWordChain WordChain
     | InputHanzi String
     | UserPressedEnter
+    | UserPressedCtrlEnter
     | ToNextWord
     | OnGiveUpClicked
     | OnToggleHelp
@@ -164,6 +166,59 @@ withAddRetries retriesDelta stats =
 init : ( Model, Cmd Msg )
 init =
     ( LoadingGameStatsFromStorage, Storage.loadStorage "game-stats" )
+
+
+gameOver uuid activeDicts game =
+    let
+        newGameStats =
+            game.gameStats
+                |> withAddRetries (List.length game.wordChain)
+                |> withAddAttempts (List.length game.wordChain)
+    in
+    ( Ready
+        { game
+            | gameState = TooManyWrongAnswers
+            , showTodoUpdate = Just (List.length game.wordChain)
+            , showTodoUpdateTimer = 2
+            , gameStats = newGameStats
+        }
+    , Cmd.batch
+        [ Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
+        , roundFinishedPost uuid False activeDicts game
+        ]
+    )
+
+
+toNextWord uuid activeDicts dictionaries game =
+    let
+        a =
+            game.wordsFound
+                |> Set.fromList
+
+        b =
+            dictionaries
+                |> allWords activeDicts
+                |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
+                |> Set.fromList
+    in
+    --if List.length game.wordsFound >= List.length (allWords game.dictsActive) then
+    if (Set.intersect a b |> Set.size) == Set.size b then
+        gameFinished uuid activeDicts game
+
+    else
+        let
+            dictionary =
+                dictionaries
+                    |> allWords activeDicts
+                    |> List.filter (\word -> not <| List.member (wordHanzi word) game.wordsFound)
+        in
+        ( Ready game
+        , Cmd.batch
+            [ Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
+            , Browser.Dom.focus Common.idInput
+                |> Task.attempt (\_ -> NoOp)
+            ]
+        )
 
 
 
@@ -319,56 +374,19 @@ update uuid dictionaries activeDicts msg model =
                 in
                 ( Ready newModel, cmd )
 
+        ( Ready game, UserPressedCtrlEnter ) ->
+            case game.gameState of
+                NotDone ->
+                    gameOver uuid activeDicts game
+
+                _ ->
+                    toNextWord uuid activeDicts dictionaries game
+
         ( Ready game, ToNextWord ) ->
-            let
-                a =
-                    game.wordsFound
-                        |> Set.fromList
-
-                b =
-                    dictionaries
-                        |> allWords activeDicts
-                        |> List.map (\w -> List.map .hanzi w.characters |> String.join "")
-                        |> Set.fromList
-            in
-            --if List.length game.wordsFound >= List.length (allWords game.dictsActive) then
-            if (Set.intersect a b |> Set.size) == Set.size b then
-                gameFinished uuid activeDicts game
-
-            else
-                let
-                    dictionary =
-                        dictionaries
-                            |> allWords activeDicts
-                            |> List.filter (\word -> not <| List.member (wordHanzi word) game.wordsFound)
-                in
-                ( Ready game
-                , Cmd.batch
-                    [ Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
-                    , Browser.Dom.focus Common.idInput
-                        |> Task.attempt (\_ -> NoOp)
-                    ]
-                )
+            toNextWord uuid activeDicts dictionaries game
 
         ( Ready game, OnGiveUpClicked ) ->
-            let
-                newGameStats =
-                    game.gameStats
-                        |> withAddRetries (List.length game.wordChain)
-                        |> withAddAttempts (List.length game.wordChain)
-            in
-            ( Ready
-                { game
-                    | gameState = TooManyWrongAnswers
-                    , showTodoUpdate = Just (List.length game.wordChain)
-                    , showTodoUpdateTimer = 2
-                    , gameStats = newGameStats
-                }
-            , Cmd.batch
-                [ Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
-                , roundFinishedPost uuid False activeDicts game
-                ]
-            )
+            gameOver uuid activeDicts game
 
         ( Ready game, OnRestartClick ) ->
             restartGame dictionaries activeDicts game
@@ -504,6 +522,7 @@ subscriptions model =
 
             _ ->
                 Sub.none
+        , Browser.Events.onKeyDown (Common.onCtrlEnter UserPressedCtrlEnter NoOp)
         ]
 
 
