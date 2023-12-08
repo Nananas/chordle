@@ -401,6 +401,7 @@ viewHanzi onMobile hanzi showPopupForCharacter wordId =
         |> List.indexedMap
             (\id char ->
                 WordChain.viewSingleHanzi onMobile
+                    False
                     { state = WordChain.Show True
                     , showPopup = showPopupForCharacter
                     , onMouseEnterCharacterMsg = OnMouseEnterCharacter

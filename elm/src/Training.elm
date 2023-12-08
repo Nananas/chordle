@@ -530,11 +530,11 @@ subscriptions model =
 -- VIEW
 
 
-view : Device -> Words.Dictionaries -> List String -> Model -> Element Msg
-view device dictionaries activeDicts model =
+view : Device -> Bool -> Words.Dictionaries -> List String -> Model -> Element Msg
+view device showHanziAsPinyin dictionaries activeDicts model =
     case model of
         Ready game ->
-            viewGame device dictionaries activeDicts game
+            viewGame device showHanziAsPinyin dictionaries activeDicts game
 
         GameFinished game ->
             viewGameFinished game.gameStats
@@ -543,8 +543,8 @@ view device dictionaries activeDicts model =
             UI.spinner
 
 
-viewGame : Device -> Words.Dictionaries -> List String -> GameModel -> Element Msg
-viewGame device dictionaries activeDicts game =
+viewGame : Device -> Bool -> Words.Dictionaries -> List String -> GameModel -> Element Msg
+viewGame device showHanziAsPinyin dictionaries activeDicts game =
     let
         onMobile =
             isOnMobile device
@@ -568,7 +568,7 @@ viewGame device dictionaries activeDicts game =
                 |> List.indexedMap
                     (\wordId { word } ->
                         row [ width fill, spacing 20, padding 5 ]
-                            [ el [ width <| fillPortion 1 ] <| viewWordAnswers onMobile game wordId word
+                            [ el [ width <| fillPortion 1 ] <| viewWordAnswers onMobile showHanziAsPinyin game wordId word
                             , el [ width <| fillPortion 2 ] <| Common.viewWordEnglish onMobile word
                             ]
                     )
@@ -594,6 +594,7 @@ viewGame device dictionaries activeDicts game =
         , msgKeyboardInput = KeyboardInput
         , msgKeyboardBackspace = KeyboardBackspace
         , msgKeyboardClear = KeyboardClear
+        , showHanziAsPinyin = showHanziAsPinyin
         }
 
 
@@ -771,15 +772,15 @@ viewGameFinished game =
             ]
 
 
-viewWordAnswers : Bool -> GameModel -> Int -> Word -> Element Msg
-viewWordAnswers onMobile game wordId word =
+viewWordAnswers : Bool -> Bool -> GameModel -> Int -> Word -> Element Msg
+viewWordAnswers onMobile showHanziAsPinyin game wordId word =
     word.characters
-        |> List.indexedMap (viewSingleHanzi onMobile game wordId)
+        |> List.indexedMap (viewSingleHanzi onMobile showHanziAsPinyin game wordId)
         |> row [ spacing 10 ]
 
 
-viewSingleHanzi : Bool -> GameModel -> Int -> Int -> Character -> Element Msg
-viewSingleHanzi onMobile game wordId id character =
+viewSingleHanzi : Bool -> Bool -> GameModel -> Int -> Int -> Character -> Element Msg
+viewSingleHanzi onMobile showHanziAsPinyin game wordId id character =
     let
         known =
             isCharacterKnown character game.answers
@@ -806,6 +807,7 @@ viewSingleHanzi onMobile game wordId id character =
     in
     WordChain.viewSingleHanzi
         onMobile
+        showHanziAsPinyin
         { state = state
         , showPopup = game.showPopupForCharacter
         , onMouseEnterCharacterMsg = OnMouseEnterCharacter

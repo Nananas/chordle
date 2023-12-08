@@ -161,7 +161,7 @@ line =
     el [ width fill, height <| px 1, Element.Background.color <| rgba 0.8 0.8 0.8 1 ] none
 
 
-viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, msgKeyboardInput, msgKeyboardBackspace, msgKeyboardClear } =
+viewContainer onMobile showKeyboardOnMobile { popup, topbar, wordlist, bottom, msgKeyboardInput, msgKeyboardBackspace, msgKeyboardClear, showHanziAsPinyin } =
     let
         contentSpacing =
             if onMobile then

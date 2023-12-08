@@ -23,6 +23,7 @@ import MobileUI
 import Process
 import Random
 import Random.List
+import Responsive
 import Storage exposing (Storage)
 import String.Extra as String
 import Task
@@ -667,8 +668,8 @@ viewHistoryModal onMobile game =
         ]
 
 
-view : Device -> Model -> Element Msg
-view device model =
+view : Device -> Bool -> Model -> Element Msg
+view device showHanziAsPinyin model =
     let
         onMobile =
             Utils.isOnMobile device
@@ -713,6 +714,7 @@ view device model =
                                             (\id character ->
                                                 viewSingleHanzi
                                                     onMobile
+                                                    showHanziAsPinyin
                                                     wordStateFn
                                                     game.showPopupForCharacter
                                                     wordId
@@ -742,7 +744,7 @@ view device model =
             Common.viewContainer onMobile
                 True
                 { popup = modals game
-                , topbar = viewTopBar
+                , topbar = viewTopBar onMobile
                 , wordlist = wordList game wordStateFn
                 , bottom =
                     [ Common.viewInput onMobile game { msgUserPressedEnter = UserPressedEnter, msgInputHanzi = InputHanzi }
@@ -753,6 +755,7 @@ view device model =
                 , msgKeyboardInput = KeyboardInput
                 , msgKeyboardBackspace = KeyboardBackspace
                 , msgKeyboardClear = KeyboardClear
+                , showHanziAsPinyin = showHanziAsPinyin
                 }
 
         GameOver state endScore game ->
@@ -771,7 +774,7 @@ view device model =
             Common.viewContainer onMobile
                 False
                 { popup = modals game
-                , topbar = viewTopBar
+                , topbar = viewTopBar onMobile
                 , wordlist = wordList game wordStateFn
                 , bottom =
                     [ el [ width fill, height shrink, paddingXY 0 20 ] <|
@@ -798,22 +801,33 @@ view device model =
                 , msgKeyboardInput = KeyboardInput
                 , msgKeyboardBackspace = KeyboardBackspace
                 , msgKeyboardClear = KeyboardClear
+                , showHanziAsPinyin = showHanziAsPinyin
                 }
 
         _ ->
             UI.spinner
 
 
-viewTopBar =
+viewTopBar : Bool -> Element Msg
+viewTopBar onMobile =
+    let
+        buttonFn =
+            if onMobile then
+                \_ onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
+
+            else
+                \str onClick icon -> UI.niceButton str onClick (Just icon)
+    in
     row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Daily" ]
         [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
-        , el [ alignRight ] <| UI.niceIconButton (Icons.academicCap 20) OnClickedToggleShowHistory "Show history"
-        , UI.niceIconButton (Icons.questionmark 20) OnToggleHelp "Help"
+        , el [ alignRight ] <| Responsive.button onMobile "History" OnClickedToggleShowHistory Icons.academicCap
+        , Responsive.button onMobile "Help" OnToggleHelp Icons.questionmark
         ]
 
 
-viewSingleHanzi onMobile wordStateFn showPopupForCharacter wordId id character =
+viewSingleHanzi onMobile showHanziAsPinyin wordStateFn showPopupForCharacter wordId id character =
     WordChain.viewSingleHanzi onMobile
+        showHanziAsPinyin
         { state = wordStateFn character
         , showPopup = showPopupForCharacter
         , onMouseEnterCharacterMsg = OnMouseEnterCharacter

@@ -93,25 +93,13 @@ bottomBorder px =
     Element.Border.widthEach { bottom = px, left = 0, right = 0, top = 0 }
 
 
+hr =
+    el [ width fill, height (px 2), bottomBorder 2 ] none
+
+
 uppercase =
     --Element.Font.variant Element.Font.smallCaps
     Element.Font.variant Element.Font.slashedZero
-
-
-columnOrRow col =
-    if col then
-        column
-
-    else
-        row
-
-
-columnOrWrappedRow col =
-    if col then
-        column
-
-    else
-        wrappedRow
 
 
 niceButton text onClick mIcon =

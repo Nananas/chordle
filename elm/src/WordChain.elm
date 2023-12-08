@@ -266,8 +266,8 @@ type alias ViewSingleHanziOptions msg =
     }
 
 
-viewSingleHanzi : Bool -> ViewSingleHanziOptions msg -> Element msg
-viewSingleHanzi onMobile { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharacterMsg, wordId, id, character } =
+viewSingleHanzi : Bool -> Bool -> ViewSingleHanziOptions msg -> Element msg
+viewSingleHanzi onMobile showHanziAsPinyin { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharacterMsg, wordId, id, character } =
     let
         fontsize =
             if onMobile then
@@ -309,27 +309,41 @@ viewSingleHanzi onMobile { state, showPopup, onMouseEnterCharacterMsg, onMouseLe
 
                     else
                         none
+
+        showingPinyin =
+            case state of
+                Unknown ->
+                    False
+
+                Similar ->
+                    True
+
+                _ ->
+                    if showHanziAsPinyin then
+                        True
+
+                    else
+                        False
+
+        fixedBoxSize =
+            if showingPinyin then
+                width shrink
+
+            else
+                width (px size)
+
+        paddingBox =
+            if showingPinyin then
+                paddingXY 8 0
+
+            else
+                paddingXY 20 0
     in
     el
         ([ UI.floating
          , UI.rounded 5
-         , paddingXY 20 0
-
-         --, width <| maximum 50 shrink
-         , width <|
-            case state of
-                Similar ->
-                    shrink
-
-                _ ->
-                    px size
-
-         --    Known
-         --if known then
-         --    px 50
-         --else if similar then
-         --    shrink
-         --else
+         , paddingBox
+         , fixedBoxSize
          , height <| px size
          , Element.Font.color <|
             case state of
@@ -384,4 +398,8 @@ viewSingleHanzi onMobile { state, showPopup, onMouseEnterCharacterMsg, onMouseLe
                         ""
 
                     _ ->
-                        character.hanzi
+                        if showHanziAsPinyin then
+                            formatPinyin character.pinyinPart
+
+                        else
+                            character.hanzi

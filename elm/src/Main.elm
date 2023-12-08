@@ -11,6 +11,7 @@ import Element exposing (..)
 import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
+import Element.Input
 import Html
 import Html.Attributes
 import Icons
@@ -20,6 +21,7 @@ import List.Extra as List
 import MobileUI
 import Numbers
 import Random
+import Responsive
 import Storage
 import Task
 import Training
@@ -51,6 +53,7 @@ type Msg
     | ClickedToggleDictionary String Bool
     | ClickedToggleDictionaryModal
     | ClickedToggleChangelog
+    | ClickedToggleShowHanziAs Bool
     | SetDictionaryModalShowIndex Int
     | ClickedChooseDaily
     | ClickedChooseTraining
@@ -76,6 +79,7 @@ type alias Model =
     , showChangelogModal : Bool
     , oldChangelogVersion : Maybe String
     , pageStats : Maybe Backend.PageStats
+    , showHanziAsPinyin : Bool
     }
 
 
@@ -108,6 +112,7 @@ init _ =
       , showChangelogModal = False
       , oldChangelogVersion = Nothing
       , pageStats = Nothing
+      , showHanziAsPinyin = False
       }
     , Storage.loadStorage "id"
     )
@@ -312,6 +317,9 @@ update msg model =
         ( ClickedToggleChangelog, _ ) ->
             ( { model | showChangelogModal = not model.showChangelogModal }, Cmd.none )
 
+        ( ClickedToggleShowHanziAs showHanziAsPinyin, _ ) ->
+            ( { model | showHanziAsPinyin = showHanziAsPinyin }, Cmd.none )
+
         ( SetDictionaryModalShowIndex _, _ ) ->
             ( model, Cmd.none )
 
@@ -421,11 +429,11 @@ view model =
                 viewChooseGameType onMobile model
 
             Training trainingModel ->
-                Training.view model.device model.wordsFile.parts model.activeDicts trainingModel
+                Training.view model.device model.showHanziAsPinyin model.wordsFile.parts model.activeDicts trainingModel
                     |> Element.map TrainingMsg
 
             Daily dailyModel ->
-                Daily.view model.device dailyModel
+                Daily.view model.device model.showHanziAsPinyin dailyModel
                     |> Element.map DailyMsg
 
             Numbers numbersModel ->
@@ -445,45 +453,48 @@ view model =
 
 
 viewChooseGameType : Bool -> Model -> Element Msg
-viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showingCurrentDictionaryIndex, showChangelogModal, oldChangelogVersion, pageStats } =
+viewChooseGameType onMobile model =
     let
         modal =
-            if showDictionaryModal then
-                viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
+            if model.showDictionaryModal then
+                viewDictionaryModal onMobile model.wordsFile model.activeDicts model.showingCurrentDictionaryIndex
 
-            else if showChangelogModal then
-                Changelog.view oldChangelogVersion onMobile ClickedToggleChangelog
+            else if model.showChangelogModal then
+                Changelog.view model.oldChangelogVersion onMobile ClickedToggleChangelog
 
             else
                 none
 
         attrs =
-            if List.isEmpty activeDicts then
+            if List.isEmpty model.activeDicts then
                 [ Background.color UI.lightGray, mouseOver [] ]
 
             else
                 []
 
         orDisabled msg =
-            if List.isEmpty activeDicts then
+            if List.isEmpty model.activeDicts then
                 NoOp
 
             else
                 msg
     in
     column [ width fill, height fill, inFront modal ]
-        [ viewTopBar onMobile wordsFile.parts activeDicts showDictionaryModal
+        [ viewTopBar onMobile model.wordsFile.parts model.activeDicts model.showDictionaryModal
         , el [ width fill, height fill ] <|
             column [ centerX, centerY, spacing 100 ]
                 [ column [ centerX, spacing 20 ]
-                    [ row [ centerX, spacing 50 ]
+                    [ Responsive.row onMobile
+                        [ spacing 50 ]
                         [ el [] <| UI.niceButtonWith attrs "Daily Chordle" (orDisabled ClickedChooseDaily) (Just <| Icons.calendar 24)
-                        , el [] <| UI.niceButtonWith attrs "Training" (orDisabled ClickedChooseTraining) (Just <| Icons.academicCap 24)
-                        , el [] <| UI.niceButtonWith attrs "Numbers" (orDisabled ClickedChooseNumbers) (Just <| Icons.calculator 24)
+                        , el [ centerX ] <| UI.niceButtonWith attrs "Training" (orDisabled ClickedChooseTraining) (Just <| Icons.academicCap 24)
+                        , el [ centerX ] <| UI.niceButtonWith attrs "Numbers" (orDisabled ClickedChooseNumbers) (Just <| Icons.calculator 24)
                         ]
                     ]
                 ]
-        , case pageStats of
+        , viewShowHanziAs model.showHanziAsPinyin
+        , el [ height (px 20) ] none -- spacing
+        , case model.pageStats of
             Just stats ->
                 let
                     totalActivity =
@@ -532,6 +543,38 @@ viewChooseGameType onMobile { wordsFile, activeDicts, showDictionaryModal, showi
             _ ->
                 none
         ]
+
+
+viewShowHanziAs : Bool -> Element Msg
+viewShowHanziAs showHanziAsPinyin =
+    let
+        checkbox checked =
+            el
+                [ UI.rounded 4
+                , Border.width 3
+                , Border.color UI.accentColorHighlight
+                , Font.color UI.accentColor
+                , Font.size 20
+                , Font.medium
+                ]
+            <|
+                if checked then
+                    el [ padding 10 ] (text "Pinyin")
+
+                else
+                    el [ padding 10 ] (text "汉字")
+    in
+    el [ width fill ] <|
+        column [ centerX, spacing 10, Font.color UI.accentColorHighlight ]
+            [ UI.hr
+            , Element.Input.checkbox []
+                { onChange = ClickedToggleShowHanziAs
+                , icon = checkbox
+                , checked = showHanziAsPinyin
+                , label = Element.Input.labelLeft [ centerY ] (UI.niceText "Show words in: ")
+                }
+            , UI.hr
+            ]
 
 
 viewTopBar : Bool -> Words.Dictionaries -> List String -> Bool -> Element Msg
@@ -733,7 +776,7 @@ viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
                     (\( title, sub ) ->
                         column [ spacing 10, width <| maximum 850 fill ]
                             [ UI.headingWith [] title
-                            , UI.columnOrWrappedRow onMobile [ spacing 10 ] <|
+                            , Responsive.wrappedRow onMobile [ spacing 10 ] <|
                                 List.map
                                     (\( subtitle, dictName ) ->
                                         let

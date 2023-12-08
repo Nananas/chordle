@@ -18,7 +18,17 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Oct 15
+    [ ( Date.fromCalendarDate 2023 Dec 8
+      , "0.3.3"
+      , [ "Added Ctrl+Enter keyboard shortcut, to more easily give up and go to the next word"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 Nov 29
+      , "0.3.2"
+      , [ "Added option to show only pinyin instead of hanzi (except Numbers game, currently)"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 Oct 15
       , "0.3.1"
       , [ "Fixed issue with training stats not being loaded properly"
         ]
