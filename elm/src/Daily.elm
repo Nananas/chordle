@@ -174,6 +174,7 @@ gameOver uuid activeDicts dayProgress game =
             , rata = Date.toRataDie game.today
             }
             |> Cmd.map BackendMsg
+        , Common.blurButton Common.idGiveUpBtn NoOp
         ]
     )
 
@@ -749,7 +750,7 @@ view device showHanziAsPinyin model =
                 , bottom =
                     [ Common.viewInput onMobile game { msgUserPressedEnter = UserPressedEnter, msgInputHanzi = InputHanzi }
                     , Common.viewWrongAnwers onMobile (WordChain.wrongAnswersOf game.wordChain game.answers)
-                    , el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+                    , el [ centerX ] <| UI.niceButtonWith [ Common.idGiveUpBtnAttr ] "I give up, show me the answers" OnGiveUpClicked Nothing
                     , viewIsGameAReplay game
                     ]
                 , msgKeyboardInput = KeyboardInput
@@ -810,14 +811,6 @@ view device showHanziAsPinyin model =
 
 viewTopBar : Bool -> Element Msg
 viewTopBar onMobile =
-    let
-        buttonFn =
-            if onMobile then
-                \_ onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
-
-            else
-                \str onClick icon -> UI.niceButton str onClick (Just icon)
-    in
     row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Daily" ]
         [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
         , el [ alignRight ] <| Responsive.button onMobile "History" OnClickedToggleShowHistory Icons.academicCap

@@ -1,7 +1,6 @@
 module Training exposing (..)
 
 import Backend
-import Browser.Dom
 import Browser.Events
 import Common
 import Dict
@@ -16,7 +15,6 @@ import Json.Decode
 import Json.Encode
 import List.Extra as List
 import MobileUI
-import Process
 import Random
 import Set
 import Storage
@@ -113,10 +111,6 @@ inactivityTime =
     30 * 60 * 1000
 
 
-idNextButton =
-    "next-btn"
-
-
 {-| Used by wordchain generator
 -}
 amount =
@@ -185,6 +179,7 @@ gameOver uuid activeDicts game =
     , Cmd.batch
         [ Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
         , roundFinishedPost uuid False activeDicts game
+        , Common.blurButton Common.idNextBtn NoOp
         ]
     )
 
@@ -215,8 +210,7 @@ toNextWord uuid activeDicts dictionaries game =
         ( Ready game
         , Cmd.batch
             [ Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
-            , Browser.Dom.focus Common.idInput
-                |> Task.attempt (\_ -> NoOp)
+            , Common.blurButton Common.idGiveUpBtn NoOp
             ]
         )
 
@@ -314,9 +308,6 @@ update uuid dictionaries activeDicts msg model =
                             Json.Encode.string
                             wordsFound
                     }
-                , Process.sleep 100
-                    |> Task.andThen (\_ -> Browser.Dom.focus Common.idInput)
-                    |> Task.attempt (\_ -> NoOp)
                 ]
             )
 
@@ -474,8 +465,6 @@ restartGame dictionaries activeDicts model =
         }
     , Cmd.batch
         [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords activeDicts dictionaries)
-        , Browser.Dom.focus Common.idInput
-            |> Task.attempt (\_ -> NoOp)
         , Storage.setStorage
             { name = "words-found"
             , json =
@@ -585,10 +574,22 @@ viewGame device showHanziAsPinyin dictionaries activeDicts game =
             , Common.viewWrongAnwers onMobile (WordChain.wrongAnswersOf game.wordChain game.answers)
             , case game.gameState of
                 NotDone ->
-                    el [ centerX ] <| UI.niceButton "I give up, show me the answers" OnGiveUpClicked Nothing
+                    el [ centerX ] <|
+                        UI.niceButtonWith
+                            [ Common.idGiveUpBtnAttr
+                            ]
+                            "I give up, show me the answers"
+                            OnGiveUpClicked
+                            Nothing
 
                 _ ->
-                    el [ centerX ] <| UI.niceButtonWith [ htmlAttribute <| Html.Attributes.id idNextButton ] "Next" ToNextWord Nothing
+                    el [ centerX ] <|
+                        UI.niceButtonWith
+                            [ Common.idNextBtnAttr
+                            ]
+                            "Next"
+                            ToNextWord
+                            Nothing
             , el [ centerX, Font.color <| UI.gray, Font.size 14 ] <| none
             ]
         , msgKeyboardInput = KeyboardInput
@@ -857,89 +858,78 @@ processInput txt game =
 
 processRoundFinished : Backend.Uuid -> List String -> GameModel -> ( GameModel, Cmd Msg )
 processRoundFinished uuid activeDicts game =
-    let
-        withFocusNextBtn ( m, cmd1 ) =
-            ( m
-            , Cmd.batch
-                [ cmd1
-                , Browser.Dom.focus idNextButton
-                    |> Task.attempt (\_ -> NoOp)
-                ]
-            )
-    in
-    withFocusNextBtn <|
-        if List.length (WordChain.wrongAnswersOf game.wordChain game.answers) > 5 then
-            -- Too many wrong answers
+    if List.length (WordChain.wrongAnswersOf game.wordChain game.answers) > 5 then
+        -- Too many wrong answers
+        let
+            newGameStats =
+                game.gameStats
+                    |> withAddRetries (List.length game.wordChain)
+                    |> withAddAttempts (List.length game.wordChain)
+        in
+        ( { game
+            | gameState = TooManyWrongAnswers
+            , showTodoUpdate = Just (List.length game.wordChain)
+            , showTodoUpdateTimer = 2
+            , gameStats = newGameStats
+            , errorMsg = Nothing
+          }
+        , Cmd.batch
+            [ Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
+            , roundFinishedPost uuid False activeDicts game
+            ]
+        )
+
+    else
+        let
+            finished =
+                game.wordChain
+                    |> List.foldl
+                        (\{ word } acc -> isWordFullyKnown word game.answers && acc)
+                        True
+        in
+        if finished then
+            -- word round finished, we found all correctly
             let
                 newGameStats =
                     game.gameStats
-                        |> withAddRetries (List.length game.wordChain)
-                        |> withAddAttempts (List.length game.wordChain)
+                        |> withAddAttempts 1
+                        |> withAddOneCorrect
+
+                wordsFound =
+                    List.foldl
+                        (\{ word } acc ->
+                            if List.member (wordHanzi word) acc then
+                                acc
+
+                            else
+                                wordHanzi word :: acc
+                        )
+                        game.wordsFound
+                        game.wordChain
             in
             ( { game
-                | gameState = TooManyWrongAnswers
-                , showTodoUpdate = Just (List.length game.wordChain)
+                | gameState = FilledInCorrectly
+                , showTodoUpdate = Just -(List.length game.wordChain)
                 , showTodoUpdateTimer = 2
+                , wordsFound = wordsFound
                 , gameStats = newGameStats
                 , errorMsg = Nothing
               }
             , Cmd.batch
-                [ Storage.setStorage { name = "game-stats", json = encodeGameStats newGameStats }
-                , roundFinishedPost uuid False activeDicts game
+                [ Storage.setStorage
+                    { name = "words-found"
+                    , json =
+                        Json.Encode.list
+                            Json.Encode.string
+                            wordsFound
+                    }
+                , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
+                , roundFinishedPost uuid True activeDicts game
                 ]
             )
 
         else
-            let
-                finished =
-                    game.wordChain
-                        |> List.foldl
-                            (\{ word } acc -> isWordFullyKnown word game.answers && acc)
-                            True
-            in
-            if finished then
-                -- word round finished, we found all correctly
-                let
-                    newGameStats =
-                        game.gameStats
-                            |> withAddAttempts 1
-                            |> withAddOneCorrect
-
-                    wordsFound =
-                        List.foldl
-                            (\{ word } acc ->
-                                if List.member (wordHanzi word) acc then
-                                    acc
-
-                                else
-                                    wordHanzi word :: acc
-                            )
-                            game.wordsFound
-                            game.wordChain
-                in
-                ( { game
-                    | gameState = FilledInCorrectly
-                    , showTodoUpdate = Just -(List.length game.wordChain)
-                    , showTodoUpdateTimer = 2
-                    , wordsFound = wordsFound
-                    , gameStats = newGameStats
-                    , errorMsg = Nothing
-                  }
-                , Cmd.batch
-                    [ Storage.setStorage
-                        { name = "words-found"
-                        , json =
-                            Json.Encode.list
-                                Json.Encode.string
-                                wordsFound
-                        }
-                    , Storage.setStorage <| { name = "game-stats", json = encodeGameStats newGameStats }
-                    , roundFinishedPost uuid True activeDicts game
-                    ]
-                )
-
-            else
-                ( { game | gameState = NotDone }, Cmd.none )
+            ( { game | gameState = NotDone }, Cmd.none )
 
 
 

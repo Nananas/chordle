@@ -180,7 +180,7 @@ type alias Error =
 handleJsonResponse : Json.Decode.Decoder a -> Http.Response String -> Result Error a
 handleJsonResponse decoder response =
     case response of
-        Http.BadUrl_ url ->
+        Http.BadUrl_ _ ->
             Err "Bad URL"
 
         Http.Timeout_ ->

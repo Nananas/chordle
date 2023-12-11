@@ -1,5 +1,6 @@
 module Common exposing (..)
 
+import Browser.Dom
 import Element exposing (..)
 import Element.Background
 import Element.Border
@@ -9,6 +10,7 @@ import Html.Attributes
 import Json.Decode
 import List.Extra as List
 import MobileUI
+import Task
 import UI
 import Words exposing (PinyinPart, formatPinyin)
 
@@ -251,3 +253,25 @@ onCtrlEnter msg noOp =
         )
         (Json.Decode.field "key" Json.Decode.string)
         (Json.Decode.field "ctrlKey" Json.Decode.bool)
+
+
+idGiveUpBtn =
+    "btn-give-up"
+
+
+idGiveUpBtnAttr =
+    htmlAttribute <| Html.Attributes.id idGiveUpBtn
+
+
+idNextBtn =
+    "btn-next"
+
+
+idNextBtnAttr =
+    htmlAttribute <| Html.Attributes.id idNextBtn
+
+
+blurButton btn noOpMsg =
+    Browser.Dom.blur btn
+        |> Task.attempt
+            (\_ -> noOpMsg)

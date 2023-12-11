@@ -567,7 +567,7 @@ hanziLanguage =
         , ( 1, "一" )
         ]
     , factorChar =
-        \factor min acc ->
+        \factor min _ ->
             if
                 factor
                     == 2

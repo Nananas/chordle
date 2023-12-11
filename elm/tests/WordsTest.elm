@@ -1,6 +1,5 @@
 module WordsTest exposing (..)
 
-import Dict
 import Expect
 import Test exposing (..)
 import Tones

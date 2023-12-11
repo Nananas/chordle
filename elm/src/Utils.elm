@@ -1,8 +1,6 @@
 module Utils exposing (..)
 
 import Element exposing (..)
-import Html.Events
-import Json.Decode
 
 
 liftModel fn ( model, cmd ) =

@@ -4,9 +4,7 @@ import Daily
 import Dict
 import Expect
 import Random
-import Random.List
 import Test exposing (..)
-import Training
 import WordChain
 import Words exposing (newWord)
 
