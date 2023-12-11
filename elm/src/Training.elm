@@ -1,6 +1,7 @@
 module Training exposing (..)
 
 import Backend
+import Browser.Dom
 import Browser.Events
 import Common
 import Dict
@@ -15,6 +16,7 @@ import Json.Decode
 import Json.Encode
 import List.Extra as List
 import MobileUI
+import Process
 import Random
 import Set
 import Storage
@@ -32,7 +34,7 @@ type Msg
     | NewWordChain WordChain
     | InputHanzi String
     | UserPressedEnter
-    | UserPressedCtrlEnter
+    | UserPressedCtrlEnter Bool
     | ToNextWord
     | OnGiveUpClicked
     | OnToggleHelp
@@ -210,6 +212,10 @@ toNextWord uuid activeDicts dictionaries game =
         ( Ready game
         , Cmd.batch
             [ Random.generate NewWordChain (WordChain.singleChainGenerator amount dictionary)
+
+            -- text input field
+            , Browser.Dom.focus Common.idInput
+                |> Task.attempt (\_ -> NoOp)
             , Common.blurButton Common.idGiveUpBtn NoOp
             ]
         )
@@ -308,6 +314,9 @@ update uuid dictionaries activeDicts msg model =
                             Json.Encode.string
                             wordsFound
                     }
+                , Process.sleep 100
+                    |> Task.andThen (\_ -> Browser.Dom.focus Common.idInput)
+                    |> Task.attempt (\_ -> NoOp)
                 ]
             )
 
@@ -365,13 +374,19 @@ update uuid dictionaries activeDicts msg model =
                 in
                 ( Ready newModel, cmd )
 
-        ( Ready game, UserPressedCtrlEnter ) ->
-            case game.gameState of
-                NotDone ->
+        ( Ready game, UserPressedCtrlEnter ctrl ) ->
+            case ( ctrl, game.gameState ) of
+                ( True, NotDone ) ->
                     gameOver uuid activeDicts game
 
-                _ ->
+                ( _, TooManyWrongAnswers ) ->
                     toNextWord uuid activeDicts dictionaries game
+
+                ( _, FilledInCorrectly ) ->
+                    toNextWord uuid activeDicts dictionaries game
+
+                _ ->
+                    ( Ready game, Cmd.none )
 
         ( Ready game, ToNextWord ) ->
             toNextWord uuid activeDicts dictionaries game
@@ -465,6 +480,8 @@ restartGame dictionaries activeDicts model =
         }
     , Cmd.batch
         [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords activeDicts dictionaries)
+        , Browser.Dom.focus Common.idInput
+            |> Task.attempt (\_ -> NoOp)
         , Storage.setStorage
             { name = "words-found"
             , json =

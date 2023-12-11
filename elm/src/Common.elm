@@ -245,8 +245,8 @@ viewWordEnglish onMobile word =
 onCtrlEnter msg noOp =
     Json.Decode.map2
         (\key ctrl ->
-            if key == "Enter" && ctrl then
-                msg
+            if key == "Enter" then
+                msg ctrl
 
             else
                 noOp

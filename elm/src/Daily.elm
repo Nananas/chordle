@@ -51,7 +51,7 @@ type Msg
     | NoOp
     | NoOpIntInt ( Int, Int )
     | UserPressedEnter
-    | UserPressedCtrlEnter
+    | UserPressedCtrlEnter Bool
     | InputHanzi String
     | OnMouseEnterCharacter ( Int, Int )
     | OnMouseLeaveCharacter
@@ -357,8 +357,12 @@ update uuid dictionaries activeDicts msg model =
                 processInput txt game
                     |> processRoundFinished uuid activeDicts
 
-        ( Playing game, UserPressedCtrlEnter ) ->
-            gameOver uuid activeDicts GiveUp game
+        ( Playing game, UserPressedCtrlEnter ctrl ) ->
+            if ctrl then
+                gameOver uuid activeDicts GiveUp game
+
+            else
+                ( model, Cmd.none )
 
         ( Playing game, OnGiveUpClicked ) ->
             gameOver uuid activeDicts GiveUp game
