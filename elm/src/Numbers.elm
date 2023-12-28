@@ -14,6 +14,7 @@ import Tones exposing (Tone(..))
 import UI
 import Utils exposing (..)
 import WordChain
+import WordChainPopup
 import Words exposing (PinyinPart)
 
 
@@ -36,11 +37,10 @@ type Msg
     | NewGeneration ( GameMode, Int )
     | NextRound
     | UserPressedEnter
-    | OnMouseLeaveCharacter
-    | OnMouseEnterCharacter ( Int, Int )
     | OnToggleHelp
     | BackendMsg Backend.Msg
     | OnClickedToggleGameMode GameMode
+    | WordChainPopupMsg WordChainPopup.Msg
 
 
 type alias GameModel =
@@ -48,11 +48,11 @@ type alias GameModel =
     , hanzi : List String
     , errorMsg : Maybe String
     , roundEnd : Bool
-    , showPopupForCharacter : Maybe ( Int, Int )
     , showHelp : Bool
     , gameModesEnabled : GameModes
     , numberTypes : List NumberType
     , roundGameMode : GameMode
+    , popupState : WordChainPopup.State
     }
 
 
@@ -91,11 +91,11 @@ initReady number gameModes numberModes roundMode =
         , hanzi = numberToParts hanziLanguage number
         , errorMsg = Nothing
         , roundEnd = False
-        , showPopupForCharacter = Nothing
         , showHelp = False
         , gameModesEnabled = gameModes
         , numberTypes = numberModes
         , roundGameMode = roundMode
+        , popupState = WordChainPopup.ShowNoPopup
         }
 
 
@@ -183,11 +183,8 @@ update uuid msg model =
             else
                 ( Ready { game | roundEnd = True }, Cmd.none )
 
-        ( Ready game, OnMouseLeaveCharacter ) ->
-            ( Ready { game | showPopupForCharacter = Nothing }, Cmd.none )
-
-        ( Ready game, OnMouseEnterCharacter ( wordId, id ) ) ->
-            ( Ready { game | showPopupForCharacter = Just ( wordId, id ) }, Cmd.none )
+        ( Ready game, WordChainPopupMsg pmsg ) ->
+            ( Ready { game | popupState = WordChainPopup.update pmsg game.popupState }, Cmd.none )
 
         ( _, BackendMsg _ ) ->
             ( model, Cmd.none )
@@ -288,7 +285,7 @@ viewGame onMobile game =
                         else
                             UI.modal
                 in
-                modalFn OnToggleHelp (viewHelp onMobile game.showPopupForCharacter)
+                modalFn OnToggleHelp (viewHelp onMobile game.popupState)
 
             else
                 none
@@ -314,10 +311,10 @@ viewGame onMobile game =
             , if game.roundEnd then
                 case game.roundGameMode of
                     EnCh ->
-                        viewHanzi onMobile game.hanzi game.showPopupForCharacter 0
+                        viewHanzi onMobile game.hanzi game.popupState 0
 
                     NumCh ->
-                        viewHanzi onMobile game.hanzi game.showPopupForCharacter 0
+                        viewHanzi onMobile game.hanzi game.popupState 0
 
                     ChNum ->
                         UI.headingWith [ Element.Font.size 32 ] <| formattedNumberRaw game.number
@@ -395,21 +392,20 @@ viewGameModes game =
 
 {-| wordId = 0 for game, wordId > 0 for help
 -}
-viewHanzi onMobile hanzi showPopupForCharacter wordId =
+viewHanzi onMobile hanzi popupState wordId =
     hanzi
         |> List.map (\str -> { hanzi = str, pinyinPart = hanziToPinyinPart str })
         |> List.indexedMap
             (\id char ->
-                WordChain.viewSingleHanzi onMobile
-                    False
-                    { state = WordChain.Show True
-                    , showPopup = showPopupForCharacter
-                    , onMouseEnterCharacterMsg = OnMouseEnterCharacter
-                    , onMouseLeaveCharacterMsg = OnMouseLeaveCharacter
-                    , wordId = wordId
-                    , id = id
-                    , character = char
-                    }
+                Element.map WordChainPopupMsg <|
+                    WordChain.viewSingleHanzi onMobile
+                        False
+                        { state = WordChain.Show True
+                        , popupState = popupState
+                        , wordId = wordId
+                        , id = id
+                        , character = char
+                        }
             )
         |> row [ centerX, Element.Font.size 24, spacing 5 ]
 

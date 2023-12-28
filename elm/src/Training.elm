@@ -26,6 +26,7 @@ import Time
 import UI
 import Utils exposing (..)
 import WordChain exposing (WordChain)
+import WordChainPopup
 import Words exposing (..)
 
 
@@ -43,8 +44,6 @@ type Msg
     | OnToggleDictionaryShowAllWords
     | OnRestartClick
       --
-    | OnMouseEnterCharacter ( Int, Int )
-    | OnMouseLeaveCharacter
     | OnTick Time.Posix
       --
     | OnActivity Time.Posix
@@ -58,6 +57,8 @@ type Msg
     | OnClickedHome
       --
     | BackendMsg Backend.Msg
+      --
+    | WordChainPopupMsg WordChainPopup.Msg
 
 
 type Model
@@ -80,7 +81,6 @@ type alias GameModel =
     , gameState : GameState
 
     --
-    , showPopupForCharacter : Maybe ( Int, Int )
     , showTodoUpdate : Maybe Int
     , showTodoUpdateTimer : Int
     , showHelp : Bool
@@ -93,6 +93,9 @@ type alias GameModel =
 
     --
     , lastActivity : Time.Posix
+
+    --
+    , popupState : WordChainPopup.State
     }
 
 
@@ -264,7 +267,6 @@ update uuid dictionaries activeDicts msg model =
                     , currentInput = ""
                     , errorMsg = Nothing
                     , gameState = NotDone
-                    , showPopupForCharacter = Nothing
                     , showTodoUpdate = Nothing
                     , showTodoUpdateTimer = 0
                     , showHelp = False
@@ -274,6 +276,7 @@ update uuid dictionaries activeDicts msg model =
                     , useScreenKeyboardOnMobile = True
                     , keyboardKeyFeedback = Nothing
                     , gameStats = gameStats
+                    , popupState = WordChainPopup.ShowNoPopup
                     }
 
             else
@@ -295,7 +298,6 @@ update uuid dictionaries activeDicts msg model =
                 , currentInput = ""
                 , errorMsg = Nothing
                 , gameState = NotDone
-                , showPopupForCharacter = Nothing
                 , showTodoUpdate = Nothing
                 , showTodoUpdateTimer = 0
                 , showHelp = False
@@ -305,6 +307,7 @@ update uuid dictionaries activeDicts msg model =
                 , useScreenKeyboardOnMobile = True
                 , keyboardKeyFeedback = Nothing
                 , gameStats = gameStats
+                , popupState = WordChainPopup.ShowNoPopup
                 }
             , Cmd.batch
                 [ Storage.setStorage
@@ -331,10 +334,10 @@ update uuid dictionaries activeDicts msg model =
                     , currentInput = ""
                     , errorMsg = Nothing
                     , gameState = NotDone
-                    , showPopupForCharacter = Nothing
                     , showTodoUpdate = Nothing
                     , showTodoUpdateTimer = 0
                     , showHelp = False
+                    , popupState = WordChainPopup.ShowNoPopup
                 }
             , Cmd.none
             )
@@ -421,13 +424,6 @@ update uuid dictionaries activeDicts msg model =
         ( Ready game, OnToggleDictionaryShowAllWords ) ->
             ( Ready { game | unhideDictionary = not game.unhideDictionary }, Cmd.none )
 
-        --
-        ( Ready game, OnMouseEnterCharacter id ) ->
-            ( Ready { game | showPopupForCharacter = Just id }, Cmd.none )
-
-        ( Ready game, OnMouseLeaveCharacter ) ->
-            ( Ready { game | showPopupForCharacter = Nothing }, Cmd.none )
-
         ( Ready game, OnTick _ ) ->
             let
                 withUpdateShowTodo m =
@@ -439,6 +435,10 @@ update uuid dictionaries activeDicts msg model =
             in
             ( Ready (withUpdateShowTodo game), Cmd.none )
 
+        ( Ready game, WordChainPopupMsg pmsg ) ->
+            ( Ready { game | popupState = WordChainPopup.update pmsg game.popupState }, Cmd.none )
+
+        --
         ( GameFinished _, _ ) ->
             ( model, Cmd.none )
 
@@ -477,6 +477,7 @@ restartGame dictionaries activeDicts model =
             | gameState = NotDone
             , wordsFound = []
             , gameStats = newGameStats
+            , popupState = WordChainPopup.ShowNoPopup
         }
     , Cmd.batch
         [ Random.generate NewWordChain (WordChain.singleChainGenerator amount <| allWords activeDicts dictionaries)
@@ -518,13 +519,20 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     Sub.batch
         [ case model of
-            Ready { showTodoUpdate } ->
-                case showTodoUpdate of
-                    Nothing ->
-                        Sub.none
+            Ready { showTodoUpdate, gameState } ->
+                Sub.batch
+                    [ case showTodoUpdate of
+                        Nothing ->
+                            Sub.none
 
-                    _ ->
-                        Time.every 1000 OnTick
+                        _ ->
+                            Time.every 1000 OnTick
+                    , if gameState /= NotDone then
+                        WordChainPopup.subscriptions |> Sub.map WordChainPopupMsg
+
+                      else
+                        Sub.none
+                    ]
 
             _ ->
                 Sub.none
@@ -574,7 +582,12 @@ viewGame device showHanziAsPinyin dictionaries activeDicts game =
                 |> List.indexedMap
                     (\wordId { word } ->
                         row [ width fill, spacing 20, padding 5 ]
-                            [ el [ width <| fillPortion 1 ] <| viewWordAnswers onMobile showHanziAsPinyin game wordId word
+                            [ el [ width <| fillPortion 1 ] <|
+                                viewWordAnswers onMobile
+                                    showHanziAsPinyin
+                                    game
+                                    wordId
+                                    word
                             , el [ width <| fillPortion 2 ] <| Common.viewWordEnglish onMobile word
                             ]
                     )
@@ -823,17 +836,16 @@ viewSingleHanzi onMobile showHanziAsPinyin game wordId id character =
                 _ ->
                     WordChain.Show known
     in
-    WordChain.viewSingleHanzi
-        onMobile
-        showHanziAsPinyin
-        { state = state
-        , showPopup = game.showPopupForCharacter
-        , onMouseEnterCharacterMsg = OnMouseEnterCharacter
-        , onMouseLeaveCharacterMsg = OnMouseLeaveCharacter
-        , wordId = wordId
-        , id = id
-        , character = character
-        }
+    Element.map WordChainPopupMsg <|
+        WordChain.viewSingleHanzi
+            onMobile
+            showHanziAsPinyin
+            { state = state
+            , popupState = game.popupState
+            , wordId = wordId
+            , id = id
+            , character = character
+            }
 
 
 

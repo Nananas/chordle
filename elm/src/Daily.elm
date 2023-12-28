@@ -30,6 +30,7 @@ import Task
 import UI
 import Utils
 import WordChain exposing (WordChain)
+import WordChainPopup
 import Words exposing (..)
 
 
@@ -53,8 +54,6 @@ type Msg
     | UserPressedEnter
     | UserPressedCtrlEnter Bool
     | InputHanzi String
-    | OnMouseEnterCharacter ( Int, Int )
-    | OnMouseLeaveCharacter
     | OnGiveUpClicked
     | OnClickedHome
     | OnShareClicked String
@@ -68,6 +67,7 @@ type Msg
     | OnClickedHistoryGotoToday
     | OnToggleHelp
     | NoOpString String
+    | WordChainPopupMsg WordChainPopup.Msg
 
 
 type Model
@@ -82,13 +82,13 @@ type alias GameModel =
     , currentInput : String
     , errorMsg : Maybe String
     , answers : List PinyinPart
-    , showPopupForCharacter : Maybe ( Int, Int )
     , attempts : List Attempt
     , today : Date.Date
     , progress : Progress
     , showProgressPopup : Bool
     , historyShownDate : Date.Date
     , showHelp : Bool
+    , popupState : WordChainPopup.State
     }
 
 
@@ -123,13 +123,13 @@ initGame wordChain today progress =
         , currentInput = ""
         , errorMsg = Nothing
         , answers = []
-        , showPopupForCharacter = Nothing
         , attempts = []
         , today = today
         , progress = progress
         , showProgressPopup = False
         , historyShownDate = today
         , showHelp = False
+        , popupState = WordChainPopup.ShowNoPopup
         }
     , Process.sleep 100
         |> Task.andThen (\_ -> Browser.Dom.focus idInput)
@@ -367,12 +367,6 @@ update uuid dictionaries activeDicts msg model =
         ( Playing game, OnGiveUpClicked ) ->
             gameOver uuid activeDicts GiveUp game
 
-        ( Playing game, OnMouseEnterCharacter id ) ->
-            ( Playing { game | showPopupForCharacter = Just id }, Cmd.none )
-
-        ( Playing game, OnMouseLeaveCharacter ) ->
-            ( Playing { game | showPopupForCharacter = Nothing }, Cmd.none )
-
         -- KEYBOARD
         ( Playing game, KeyboardInput char ) ->
             ( Playing { game | currentInput = game.currentInput ++ char, errorMsg = Nothing }, Cmd.none )
@@ -384,12 +378,6 @@ update uuid dictionaries activeDicts msg model =
             ( Playing { game | currentInput = "", errorMsg = Nothing }, Cmd.none )
 
         -- OTHER
-        ( GameOver success endScore game, OnMouseEnterCharacter id ) ->
-            ( GameOver success endScore { game | showPopupForCharacter = Just id }, Cmd.none )
-
-        ( GameOver success endScore game, OnMouseLeaveCharacter ) ->
-            ( GameOver success endScore { game | showPopupForCharacter = Nothing }, Cmd.none )
-
         ( GameOver (First _) _ _, OnShareClicked shareText ) ->
             ( model, Clipboard.writeToClipboard shareText )
 
@@ -417,6 +405,10 @@ update uuid dictionaries activeDicts msg model =
 
         ( GameOver success endScore game, OnClickedHistoryGotoToday ) ->
             ( GameOver success endScore { game | historyShownDate = game.today }, Cmd.none )
+
+        -- Pupup
+        ( GameOver s e game, WordChainPopupMsg pmsg ) ->
+            ( GameOver s e { game | popupState = WordChainPopup.update pmsg game.popupState }, Cmd.none )
 
         -- OTHER
         _ ->
@@ -717,14 +709,15 @@ view device showHanziAsPinyin model =
                                 ++ (word.characters
                                         |> List.indexedMap
                                             (\id character ->
-                                                viewSingleHanzi
-                                                    onMobile
-                                                    showHanziAsPinyin
-                                                    wordStateFn
-                                                    game.showPopupForCharacter
-                                                    wordId
-                                                    id
-                                                    character
+                                                Element.map WordChainPopupMsg <|
+                                                    viewSingleHanzi
+                                                        onMobile
+                                                        showHanziAsPinyin
+                                                        wordStateFn
+                                                        game.popupState
+                                                        wordId
+                                                        id
+                                                        character
                                             )
                                    )
                                 |> row [ spacing 10, width <| fillPortion 1 ]
@@ -822,13 +815,11 @@ viewTopBar onMobile =
         ]
 
 
-viewSingleHanzi onMobile showHanziAsPinyin wordStateFn showPopupForCharacter wordId id character =
+viewSingleHanzi onMobile showHanziAsPinyin wordStateFn popupState wordId id character =
     WordChain.viewSingleHanzi onMobile
         showHanziAsPinyin
         { state = wordStateFn character
-        , showPopup = showPopupForCharacter
-        , onMouseEnterCharacterMsg = OnMouseEnterCharacter
-        , onMouseLeaveCharacterMsg = OnMouseLeaveCharacter
+        , popupState = popupState
         , wordId = wordId
         , id = id
         , character = character
@@ -934,4 +925,7 @@ viewGameOverShare endScore today state =
 
 
 subscriptions =
-    Browser.Events.onKeyDown (Common.onCtrlEnter UserPressedCtrlEnter NoOp)
+    Sub.batch
+        [ Browser.Events.onKeyDown (Common.onCtrlEnter UserPressedCtrlEnter NoOp)
+        , WordChainPopup.subscriptions |> Sub.map WordChainPopupMsg
+        ]

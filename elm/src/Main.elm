@@ -28,6 +28,7 @@ import Training
 import UI
 import Utils exposing (..)
 import Uuid.Barebones exposing (uuidStringGenerator)
+import WordChain
 import Words
 
 

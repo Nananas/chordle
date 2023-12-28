@@ -18,14 +18,19 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Dec 11
+    [ ( Date.fromCalendarDate 2023 Dec 28
+      , "0.3.5"
+      , [ "Added the Shift keyboard shortcut to show pinyin of all characters between rounds"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 Dec 11
       , "0.3.4"
       , [ "Added 9 more CLT5 semester 1 Extra words"
         ]
       )
     , ( Date.fromCalendarDate 2023 Dec 8
       , "0.3.3"
-      , [ "Added Ctrl+Enter keyboard shortcut, to more easily give up and go to the next word"
+      , [ "Added the Ctrl+Enter keyboard shortcut to start and end rounds without the need of a mouse"
         ]
       )
     , ( Date.fromCalendarDate 2023 Nov 29

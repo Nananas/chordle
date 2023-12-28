@@ -11,6 +11,7 @@ import Random.List
 import Tones
 import UI
 import Utils
+import WordChainPopup exposing (State(..))
 import Words exposing (..)
 
 
@@ -255,19 +256,17 @@ type CharacterState
     | Show Bool -- e.g. when game is done, bool = correct/incorrect
 
 
-type alias ViewSingleHanziOptions msg =
+type alias ViewSingleHanziOptions =
     { state : CharacterState
-    , showPopup : Maybe ( Int, Int )
-    , onMouseEnterCharacterMsg : ( Int, Int ) -> msg
-    , onMouseLeaveCharacterMsg : msg
+    , popupState : WordChainPopup.State
     , wordId : Int
     , id : Int
     , character : Character
     }
 
 
-viewSingleHanzi : Bool -> Bool -> ViewSingleHanziOptions msg -> Element msg
-viewSingleHanzi onMobile showHanziAsPinyin { state, showPopup, onMouseEnterCharacterMsg, onMouseLeaveCharacterMsg, wordId, id, character } =
+viewSingleHanzi : Bool -> Bool -> ViewSingleHanziOptions -> Element WordChainPopup.Msg
+viewSingleHanzi onMobile showHanziAsPinyin { state, popupState, wordId, id, character } =
     let
         fontsize =
             if onMobile then
@@ -283,32 +282,38 @@ viewSingleHanzi onMobile showHanziAsPinyin { state, showPopup, onMouseEnterChara
             else
                 50
 
+        singlePopup =
+            column [ centerX ]
+                [ el [ height <| px 4 ] none
+                , el
+                    [ Element.Background.color UI.white
+                    , padding 10
+                    , centerX
+                    , Element.Font.color UI.gray
+                    , UI.floatingHigh
+                    , Element.Border.rounded 10
+                    , Element.Font.size 16
+                    , Element.Font.regular
+                    ]
+                  <|
+                    text <|
+                        formatPinyin character.pinyinPart
+                ]
+
         popup =
-            case showPopup of
-                Nothing ->
+            case popupState of
+                ShowNoPopup ->
                     none
 
-                Just ( wid, i ) ->
+                ShowPopupOf ( wid, i ) ->
                     if wid == wordId && id == i then
-                        column [ centerX ]
-                            [ el [ height <| px 10 ] none
-                            , el
-                                [ Element.Background.color UI.white
-                                , padding 10
-                                , centerX
-                                , Element.Font.color UI.gray
-                                , UI.floatingHigh
-                                , Element.Border.rounded 10
-                                , Element.Font.size 16
-                                , Element.Font.regular
-                                ]
-                              <|
-                                text <|
-                                    formatPinyin character.pinyinPart
-                            ]
+                        singlePopup
 
                     else
                         none
+
+                ShowPopupOfAll _ ->
+                    singlePopup
 
         showingPinyin =
             case state of
@@ -379,8 +384,8 @@ viewSingleHanzi onMobile showHanziAsPinyin { state, showPopup, onMouseEnterChara
          ]
             ++ (case state of
                     Show _ ->
-                        [ Element.Events.onMouseEnter (onMouseEnterCharacterMsg ( wordId, id ))
-                        , Element.Events.onMouseLeave onMouseLeaveCharacterMsg
+                        [ Element.Events.onMouseEnter (WordChainPopup.OnMouseEnterCharacter ( wordId, id ))
+                        , Element.Events.onMouseLeave WordChainPopup.OnMouseLeaveCharacter
                         ]
 
                     _ ->
