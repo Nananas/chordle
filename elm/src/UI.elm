@@ -341,9 +341,10 @@ modal toggleMsg content =
         el [ padding 50, width fill, height fill, htmlAttribute <| Html.Attributes.style "pointer-events" "none" ] <|
             column
                 [ centerX
-                , width <| minimum 500 shrink
                 , centerY
-                , height fill
+                , floatingHigh
+                , width <| minimum 500 shrink
+                , height <| minimum 400 shrink
                 , padding 40
                 , Element.Background.color accentColorLight
                 , spacing 20

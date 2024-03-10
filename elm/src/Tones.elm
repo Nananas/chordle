@@ -1,6 +1,6 @@
 module Tones exposing (..)
 
-import Element exposing (rgb255)
+import Element exposing (Color, rgb255)
 
 
 type Tone
@@ -12,25 +12,102 @@ type Tone
     | FifthOr Tone
 
 
-toneToColor tone =
-    case tone of
-        First ->
-            rgb255 210 210 100
+type Colors
+    = NotChosen
+    | ChordleColors
+    | PlecoColors
+    | NoColors
 
-        Second ->
-            rgb255 120 220 140
 
-        Third ->
-            rgb255 125 125 240
+type alias CustomColors =
+    { first : Color, second : Color, third : Color, forth : Color, fifth : Color }
 
-        Forth ->
-            rgb255 210 125 240
 
-        Fifth ->
-            rgb255 150 150 150
+chordleColors : CustomColors
+chordleColors =
+    { first = rgb255 210 210 100
+    , second = rgb255 120 220 140
+    , third = rgb255 125 125 240
+    , forth = rgb255 210 125 240
+    , fifth = rgb255 150 150 150
+    }
 
-        FifthOr other ->
-            toneToColor other
+
+plecoColors : CustomColors
+plecoColors =
+    { first = rgb255 210 10 10
+    , second = rgb255 10 180 30
+    , third = rgb255 25 20 240
+    , forth = rgb255 170 60 180
+    , fifth = rgb255 120 120 120
+    }
+
+
+toneToColor : Colors -> Tone -> Color
+toneToColor toneColors tone =
+    let
+        pickColor colors t =
+            case t of
+                First ->
+                    colors.first
+
+                Second ->
+                    colors.second
+
+                Third ->
+                    colors.third
+
+                Forth ->
+                    colors.forth
+
+                Fifth ->
+                    colors.fifth
+
+                FifthOr other ->
+                    pickColor colors other
+    in
+    case toneColors of
+        ChordleColors ->
+            pickColor chordleColors tone
+
+        PlecoColors ->
+            pickColor plecoColors tone
+
+        NoColors ->
+            rgb255 30 30 30
+
+        NotChosen ->
+            pickColor chordleColors tone
+
+
+stringToColors str =
+    case str of
+        "pleco" ->
+            PlecoColors
+
+        "chordle" ->
+            ChordleColors
+
+        "black" ->
+            NoColors
+
+        _ ->
+            NotChosen
+
+
+colorsToString toneColors =
+    case toneColors of
+        PlecoColors ->
+            Just "pleco"
+
+        ChordleColors ->
+            Just "chordle"
+
+        NoColors ->
+            Just "black"
+
+        NotChosen ->
+            Nothing
 
 
 isMatchingTones t1 t2 =

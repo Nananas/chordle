@@ -23,6 +23,7 @@ import Storage
 import String.Extra as String
 import Task
 import Time
+import Tones
 import UI
 import Utils exposing (..)
 import WordChain exposing (WordChain)
@@ -544,11 +545,11 @@ subscriptions model =
 -- VIEW
 
 
-view : Device -> Bool -> Words.Dictionaries -> List String -> Model -> Element Msg
-view device showHanziAsPinyin dictionaries activeDicts model =
+view : Device -> Bool -> Tones.Colors -> Words.Dictionaries -> List String -> Model -> Element Msg
+view device showHanziAsPinyin toneColors dictionaries activeDicts model =
     case model of
         Ready game ->
-            viewGame device showHanziAsPinyin dictionaries activeDicts game
+            viewGame device showHanziAsPinyin toneColors dictionaries activeDicts game
 
         GameFinished game ->
             viewGameFinished game.gameStats
@@ -557,8 +558,8 @@ view device showHanziAsPinyin dictionaries activeDicts model =
             UI.spinner
 
 
-viewGame : Device -> Bool -> Words.Dictionaries -> List String -> GameModel -> Element Msg
-viewGame device showHanziAsPinyin dictionaries activeDicts game =
+viewGame : Device -> Bool -> Tones.Colors -> Words.Dictionaries -> List String -> GameModel -> Element Msg
+viewGame device showHanziAsPinyin toneColors dictionaries activeDicts game =
     let
         onMobile =
             isOnMobile device
@@ -570,7 +571,7 @@ viewGame device showHanziAsPinyin dictionaries activeDicts game =
                 , htmlAttribute <| Html.Attributes.style "pointer-events" "none"
                 ]
                 [ viewDictionaryModal onMobile dictionaries activeDicts game
-                , Help.view game.showHelp onMobile OnToggleHelp NoOpString
+                , Help.view game.showHelp onMobile OnToggleHelp NoOpString toneColors
                 ]
     in
     Common.viewContainer onMobile
@@ -584,6 +585,7 @@ viewGame device showHanziAsPinyin dictionaries activeDicts game =
                         row [ width fill, spacing 20, padding 5 ]
                             [ el [ width <| fillPortion 1 ] <|
                                 viewWordAnswers onMobile
+                                    toneColors
                                     showHanziAsPinyin
                                     game
                                     wordId
@@ -803,15 +805,15 @@ viewGameFinished game =
             ]
 
 
-viewWordAnswers : Bool -> Bool -> GameModel -> Int -> Word -> Element Msg
-viewWordAnswers onMobile showHanziAsPinyin game wordId word =
+viewWordAnswers : Bool -> Tones.Colors -> Bool -> GameModel -> Int -> Word -> Element Msg
+viewWordAnswers onMobile toneColors showHanziAsPinyin game wordId word =
     word.characters
-        |> List.indexedMap (viewSingleHanzi onMobile showHanziAsPinyin game wordId)
+        |> List.indexedMap (viewSingleHanzi onMobile toneColors showHanziAsPinyin game wordId)
         |> row [ spacing 10 ]
 
 
-viewSingleHanzi : Bool -> Bool -> GameModel -> Int -> Int -> Character -> Element Msg
-viewSingleHanzi onMobile showHanziAsPinyin game wordId id character =
+viewSingleHanzi : Bool -> Tones.Colors -> Bool -> GameModel -> Int -> Int -> Character -> Element Msg
+viewSingleHanzi onMobile toneColors showHanziAsPinyin game wordId id character =
     let
         known =
             isCharacterKnown character game.answers
@@ -839,6 +841,7 @@ viewSingleHanzi onMobile showHanziAsPinyin game wordId id character =
     Element.map WordChainPopupMsg <|
         WordChain.viewSingleHanzi
             onMobile
+            toneColors
             showHanziAsPinyin
             { state = state
             , popupState = game.popupState

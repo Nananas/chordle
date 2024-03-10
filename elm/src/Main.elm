@@ -12,6 +12,7 @@ import Element.Background as Background
 import Element.Border as Border
 import Element.Font as Font
 import Element.Input
+import Help
 import Html
 import Html.Attributes
 import Icons
@@ -24,6 +25,7 @@ import Random
 import Responsive
 import Storage
 import Task
+import Tones
 import Training
 import UI
 import Utils exposing (..)
@@ -53,8 +55,11 @@ type Msg
     | OnGetBackend (Result Backend.Error ( Words.WordsFile, Backend.PageStats ))
     | ClickedToggleDictionary String Bool
     | ClickedToggleDictionaryModal
+    | ClickedToggleSettings
     | ClickedToggleChangelog
+    | ClickedToggleToneColors
     | ClickedToggleShowHanziAs Bool
+    | ChooseToneColors Tones.Colors
     | SetDictionaryModalShowIndex Int
     | ClickedChooseDaily
     | ClickedChooseTraining
@@ -69,18 +74,26 @@ type Msg
 --| MODEL
 
 
+type ActiveModal
+    = NoModal
+    | DictionaryModal
+    | SettingsModal
+    | ChangelogModal
+    | ToneColorsModal
+
+
 type alias Model =
     { device : Device
     , state : State
     , uuid : Maybe String
     , wordsFile : Words.WordsFile
     , activeDicts : List String
-    , showDictionaryModal : Bool
+    , activeModal : ActiveModal
     , showingCurrentDictionaryIndex : Int
-    , showChangelogModal : Bool
     , oldChangelogVersion : Maybe String
     , pageStats : Maybe Backend.PageStats
     , showHanziAsPinyin : Bool
+    , toneColors : Tones.Colors
     }
 
 
@@ -97,6 +110,12 @@ type State
     | Error String
 
 
+type alias Settings =
+    { version : String
+    , toneColors : Maybe String
+    }
+
+
 
 --
 
@@ -108,12 +127,12 @@ init _ =
       , uuid = Nothing
       , wordsFile = Words.WordsFile [] Dict.empty
       , activeDicts = []
-      , showDictionaryModal = False
+      , activeModal = NoModal
       , showingCurrentDictionaryIndex = 0
-      , showChangelogModal = False
       , oldChangelogVersion = Nothing
       , pageStats = Nothing
       , showHanziAsPinyin = False
+      , toneColors = Tones.NotChosen
       }
     , Storage.loadStorage "id"
     )
@@ -183,42 +202,52 @@ update msg model =
             if name == "settings" then
                 let
                     decoder =
-                        Json.Decode.field "version" Json.Decode.string
+                        Json.Decode.map2 Settings
+                            (Json.Decode.field "version" Json.Decode.string)
+                            (Json.Decode.maybe (Json.Decode.field "tone-colors" Json.Decode.string))
 
                     decoded =
                         Json.Decode.decodeValue decoder json
-
-                    saveVersionToStorage =
-                        Storage.setStorage
-                            { name = "settings"
-                            , json = Json.Encode.object [ ( "version", Json.Encode.string Changelog.currentVersion ) ]
-                            }
                 in
                 case decoded of
-                    Ok version ->
+                    Ok { version, toneColors } ->
+                        let
+                            loadedToneColors =
+                                toneColors
+                                    |> Maybe.map Tones.stringToColors
+                                    |> Maybe.withDefault Tones.NotChosen
+                        in
                         if Changelog.currentVersion /= version then
                             ( { model
-                                | showChangelogModal = True
+                                | activeModal = ChangelogModal
                                 , state = ChooseGameType
                                 , oldChangelogVersion = Just version
+                                , toneColors = loadedToneColors
                               }
-                            , saveVersionToStorage
+                            , saveSettingsToStorage loadedToneColors
                             )
 
                         else
                             ( { model
                                 | oldChangelogVersion = Just version
                                 , state = ChooseGameType
+                                , toneColors = loadedToneColors
+                                , activeModal =
+                                    if loadedToneColors == Tones.NotChosen then
+                                        ToneColorsModal
+
+                                    else
+                                        NoModal
                               }
-                            , Cmd.none
+                            , saveSettingsToStorage loadedToneColors
                             )
 
                     Err _ ->
                         ( { model
-                            | showChangelogModal = True
+                            | activeModal = ChangelogModal
                             , state = ChooseGameType
                           }
-                        , saveVersionToStorage
+                        , saveSettingsToStorage Tones.NotChosen
                         )
 
             else
@@ -279,7 +308,7 @@ update msg model =
 
         ( ClickedToggleDictionaryModal, ChooseGameType ) ->
             ( { model
-                | showDictionaryModal = not model.showDictionaryModal
+                | activeModal = model.activeModal |> toggleModal DictionaryModal
                 , showingCurrentDictionaryIndex = 0
               }
             , Cmd.none
@@ -315,8 +344,26 @@ update msg model =
             , Cmd.none
             )
 
+        ( ClickedToggleSettings, _ ) ->
+            ( { model | activeModal = model.activeModal |> toggleModal SettingsModal }, Cmd.none )
+
         ( ClickedToggleChangelog, _ ) ->
-            ( { model | showChangelogModal = not model.showChangelogModal }, Cmd.none )
+            ( { model
+                | activeModal =
+                    if model.activeModal == ChangelogModal && model.toneColors == Tones.NotChosen then
+                        ToneColorsModal
+
+                    else if model.activeModal /= ChangelogModal then
+                        ChangelogModal
+
+                    else
+                        NoModal
+              }
+            , Cmd.none
+            )
+
+        ( ClickedToggleToneColors, _ ) ->
+            ( { model | activeModal = model.activeModal |> toggleModal ToneColorsModal }, Cmd.none )
 
         ( ClickedToggleShowHanziAs showHanziAsPinyin, _ ) ->
             ( { model | showHanziAsPinyin = showHanziAsPinyin }, Cmd.none )
@@ -326,6 +373,11 @@ update msg model =
 
         ( ClickedToggleDictionary _ _, _ ) ->
             ( model, Cmd.none )
+
+        ( ChooseToneColors newToneColors, _ ) ->
+            ( { model | toneColors = newToneColors }
+            , saveSettingsToStorage newToneColors
+            )
 
         ( ClickedChooseDaily, _ ) ->
             Daily.init
@@ -391,6 +443,32 @@ setStateIn model ( state, cmd ) =
     ( { model | state = state }, cmd )
 
 
+toggleModal newModal oldModal =
+    if oldModal == newModal then
+        NoModal
+
+    else
+        newModal
+
+
+saveSettingsToStorage toneColors =
+    Storage.setStorage
+        { name = "settings"
+        , json =
+            Json.Encode.object
+                ([ ( "version", Json.Encode.string Changelog.currentVersion )
+                 ]
+                    ++ (case Tones.colorsToString toneColors of
+                            Just tc ->
+                                [ ( "tone-colors", Json.Encode.string tc ) ]
+
+                            Nothing ->
+                                []
+                       )
+                )
+        }
+
+
 
 -- SUBSCRIPTIONS
 
@@ -430,15 +508,15 @@ view model =
                 viewChooseGameType onMobile model
 
             Training trainingModel ->
-                Training.view model.device model.showHanziAsPinyin model.wordsFile.parts model.activeDicts trainingModel
+                Training.view model.device model.showHanziAsPinyin model.toneColors model.wordsFile.parts model.activeDicts trainingModel
                     |> Element.map TrainingMsg
 
             Daily dailyModel ->
-                Daily.view model.device model.showHanziAsPinyin dailyModel
+                Daily.view model.device model.showHanziAsPinyin model.toneColors dailyModel
                     |> Element.map DailyMsg
 
             Numbers numbersModel ->
-                Numbers.view model.device numbersModel
+                Numbers.view model.device model.toneColors numbersModel
                     |> Element.map NumbersMsg
 
             Error msg ->
@@ -453,18 +531,108 @@ view model =
                 UI.spinner
 
 
+viewSettingsModal onMobile =
+    let
+        modalFn =
+            if onMobile then
+                MobileUI.modal
+
+            else
+                UI.modal
+    in
+    modalFn ClickedToggleSettings
+        [ row [ centerX ]
+            [ UI.heading "Settings"
+            ]
+        , column [ centerY, width fill, spacing 20 ]
+            [ el [ centerX ] <| Responsive.button onMobile "Set Tone colors" ClickedToggleToneColors Icons.colorPicker
+            , el [ centerX ] <| Responsive.button onMobile "Changelog" ClickedToggleChangelog Icons.code
+            ]
+        ]
+
+
+viewToneColorsModal onMobile toneColors =
+    let
+        modalFn =
+            if onMobile then
+                MobileUI.modal
+
+            else
+                UI.modal
+
+        buttonFn =
+            if onMobile then
+                \_ onClick icon -> MobileUI.simpleIconButtonInverted icon onClick
+
+            else
+                \str onClick icon -> UI.niceButton str onClick (Just icon)
+
+        iconSize =
+            if onMobile then
+                16
+
+            else
+                20
+
+        colorSet newToneColors =
+            row [ width fill, spacing 5 ]
+                [ Help.viewExampleHanziFinishedRound newToneColors "听" Tones.First True
+                , Help.viewExampleHanziFinishedRound newToneColors "人" Tones.Second True
+                , Help.viewExampleHanziFinishedRound newToneColors "写" Tones.Third True
+                , Help.viewExampleHanziFinishedRound newToneColors "四" Tones.Forth True
+                , Help.viewExampleHanziFinishedRound newToneColors "吧" Tones.Fifth True
+                ]
+
+        colorSetBtn newToneColors =
+            if toneColors == newToneColors then
+                el [ height (px 50) ] <| UI.niceText "(current)"
+
+            else
+                el [ height (px 50) ] <| Responsive.button onMobile "Select" (ChooseToneColors newToneColors) Icons.colorPicker
+    in
+    modalFn ClickedToggleToneColors
+        [ row [ centerX ]
+            [ UI.heading "Tone Colors"
+            ]
+        , row [ spacing 10 ]
+            [ column [ spacing 20 ]
+                [ el [ height (px 50) ] <| UI.niceText "Chordle: "
+                , el [ height (px 50) ] <| UI.niceText "Pleco: "
+                , el [ height (px 50) ] <| UI.niceText "No color: "
+                ]
+            , column [ spacing 20 ]
+                [ colorSet Tones.ChordleColors
+                , colorSet Tones.PlecoColors
+                , colorSet Tones.NoColors
+                ]
+            , column [ spacing 20 ]
+                [ colorSetBtn Tones.ChordleColors
+                , colorSetBtn Tones.PlecoColors
+                , colorSetBtn Tones.NoColors
+                ]
+            ]
+        ]
+
+
 viewChooseGameType : Bool -> Model -> Element Msg
 viewChooseGameType onMobile model =
     let
         modal =
-            if model.showDictionaryModal then
-                viewDictionaryModal onMobile model.wordsFile model.activeDicts model.showingCurrentDictionaryIndex
+            case model.activeModal of
+                DictionaryModal ->
+                    viewDictionaryModal onMobile model.wordsFile model.activeDicts model.showingCurrentDictionaryIndex
 
-            else if model.showChangelogModal then
-                Changelog.view model.oldChangelogVersion onMobile ClickedToggleChangelog
+                SettingsModal ->
+                    viewSettingsModal onMobile
 
-            else
-                none
+                ChangelogModal ->
+                    Changelog.view model.oldChangelogVersion onMobile ClickedToggleChangelog
+
+                ToneColorsModal ->
+                    viewToneColorsModal onMobile model.toneColors
+
+                NoModal ->
+                    none
 
         attrs =
             if List.isEmpty model.activeDicts then
@@ -481,7 +649,7 @@ viewChooseGameType onMobile model =
                 msg
     in
     column [ width fill, height fill, inFront modal ]
-        [ viewTopBar onMobile model.wordsFile.parts model.activeDicts model.showDictionaryModal
+        [ viewTopBar onMobile model.wordsFile.parts model.activeDicts (model.activeModal == DictionaryModal)
         , el [ width fill, height fill ] <|
             column [ centerX, centerY, spacing 100 ]
                 [ column [ centerX, spacing 20 ]
@@ -579,7 +747,7 @@ viewShowHanziAs showHanziAsPinyin =
 
 
 viewTopBar : Bool -> Words.Dictionaries -> List String -> Bool -> Element Msg
-viewTopBar onMobile dictionaries activeDicts showModal =
+viewTopBar onMobile dictionaries activeDicts showDictionaryModal =
     let
         buttonFn =
             if onMobile then
@@ -596,7 +764,7 @@ viewTopBar onMobile dictionaries activeDicts showModal =
                 20
 
         helpMessage =
-            if List.length activeDicts == 0 && not showModal then
+            if List.length activeDicts == 0 && not showDictionaryModal then
                 column
                     []
                     [ el [ height (px 50) ] none
@@ -633,7 +801,7 @@ viewTopBar onMobile dictionaries activeDicts showModal =
                )
         )
         [ el [ alignRight, onLeft helpMessage ] <| buttonFn "Dictionaries" ClickedToggleDictionaryModal (Icons.translate iconSize)
-        , el [ alignRight ] <| buttonFn "Changelog" ClickedToggleChangelog (Icons.code iconSize)
+        , el [ alignRight ] <| buttonFn "Settings" ClickedToggleSettings (Icons.menu iconSize)
         ]
 
 

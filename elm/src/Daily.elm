@@ -27,6 +27,7 @@ import Responsive
 import Storage exposing (Storage)
 import String.Extra as String
 import Task
+import Tones
 import UI
 import Utils
 import WordChain exposing (WordChain)
@@ -665,15 +666,15 @@ viewHistoryModal onMobile game =
         ]
 
 
-view : Device -> Bool -> Model -> Element Msg
-view device showHanziAsPinyin model =
+view : Device -> Bool -> Tones.Colors -> Model -> Element Msg
+view device showHanziAsPinyin toneColors model =
     let
         onMobile =
             Utils.isOnMobile device
 
         modals game =
             if game.showHelp then
-                Help.view game.showHelp onMobile OnToggleHelp NoOpString
+                Help.view game.showHelp onMobile OnToggleHelp NoOpString toneColors
 
             else if game.showProgressPopup then
                 viewHistoryModal onMobile game
@@ -713,6 +714,7 @@ view device showHanziAsPinyin model =
                                                     viewSingleHanzi
                                                         onMobile
                                                         showHanziAsPinyin
+                                                        toneColors
                                                         wordStateFn
                                                         game.popupState
                                                         wordId
@@ -810,13 +812,14 @@ viewTopBar : Bool -> Element Msg
 viewTopBar onMobile =
     row [ height <| px 50, width fill, Element.Background.color UI.accentColor, paddingXY 20 0, spacing 20, behindContent <| UI.viewLogo "Daily" ]
         [ UI.niceIconButton (Icons.arrowBack 20) OnClickedHome "Home"
-        , el [ alignRight ] <| Responsive.button onMobile "History" OnClickedToggleShowHistory Icons.academicCap
-        , Responsive.button onMobile "Help" OnToggleHelp Icons.questionmark
+        , el [ alignRight ] <| Responsive.buttonInverted onMobile "History" OnClickedToggleShowHistory Icons.academicCap
+        , Responsive.buttonInverted onMobile "Help" OnToggleHelp Icons.questionmark
         ]
 
 
-viewSingleHanzi onMobile showHanziAsPinyin wordStateFn popupState wordId id character =
+viewSingleHanzi onMobile showHanziAsPinyin toneColors wordStateFn popupState wordId id character =
     WordChain.viewSingleHanzi onMobile
+        toneColors
         showHanziAsPinyin
         { state = wordStateFn character
         , popupState = popupState

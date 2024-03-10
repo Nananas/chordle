@@ -4,6 +4,7 @@ hanzi = {}
 parts = {}
 
 def addWords(fname):
+    print(f"-- Processing {fname}")
     with open(fname + ".json" ) as f:
         words = []
         for line in f.readlines():
@@ -42,7 +43,9 @@ dicts = [
         ("Extra Semester 2", addWords("extra-clt4-semester2"))]),
     ("NPCR CLT year 5",
         [("Book Semester 1", addWords("clt5-semester1")),
-        ("Extra Semester1", addWords("extra-clt5-semester1"))])
+        ("Extra Semester 1", addWords("extra-clt5-semester1")),
+        ("Book Semester 2", addWords("clt5-semester2")),
+        ("Extra Semester 2", addWords("extra-clt5-semester2"))])
     ]
 
 

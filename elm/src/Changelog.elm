@@ -18,7 +18,17 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2023 Dec 28
+    [ ( Date.fromCalendarDate 2024 Mar 10
+      , "0.3.7"
+      , [ "Added Dictionaries CLT 5 'Book Semester 2' and 'Extra Semester 2'. Improved translation of some words."
+        ]
+      )
+    , ( Date.fromCalendarDate 2024 Feb 3
+      , "0.3.6"
+      , [ "Added settings menu with choice option for colored pinyin: 'Pleco', 'Chordle' or just black.\n   Default option is 'Chordle'"
+        ]
+      )
+    , ( Date.fromCalendarDate 2023 Dec 28
       , "0.3.5"
       , [ "Added the Shift keyboard shortcut to show pinyin of all characters between rounds"
         ]
@@ -147,7 +157,7 @@ view mStorageVersion onMobile toggleMsg =
                         ]
                 )
             |> column [ centerX, padding 20, spacing 20, Element.Background.color UI.lightColor, UI.rounded 20 ]
-            |> el [ scrollbarY, height fill, width fill ]
+            |> el [ scrollbarY, height <| minimum 500 fill, width fill ]
         ]
 
 

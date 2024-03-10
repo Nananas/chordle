@@ -190,8 +190,8 @@ update uuid msg model =
             ( model, Cmd.none )
 
 
-view : Device -> Model -> Element Msg
-view device model =
+view : Device -> Tones.Colors -> Model -> Element Msg
+view device toneColors model =
     let
         onMobile =
             isOnMobile device
@@ -203,7 +203,7 @@ view device model =
                 UI.spinner
 
             Ready game ->
-                viewGame onMobile game
+                viewGame onMobile toneColors game
         ]
 
 
@@ -272,8 +272,8 @@ showAnswerNumber game =
             formattedNumberEnglish game.number
 
 
-viewGame : Bool -> GameModel -> Element Msg
-viewGame onMobile game =
+viewGame : Bool -> Tones.Colors -> GameModel -> Element Msg
+viewGame onMobile toneColors game =
     let
         modal =
             if game.showHelp then
@@ -285,7 +285,7 @@ viewGame onMobile game =
                         else
                             UI.modal
                 in
-                modalFn OnToggleHelp (viewHelp onMobile game.popupState)
+                modalFn OnToggleHelp (viewHelp onMobile toneColors game.popupState)
 
             else
                 none
@@ -311,10 +311,10 @@ viewGame onMobile game =
             , if game.roundEnd then
                 case game.roundGameMode of
                     EnCh ->
-                        viewHanzi onMobile game.hanzi game.popupState 0
+                        viewHanzi onMobile toneColors game.hanzi game.popupState 0
 
                     NumCh ->
-                        viewHanzi onMobile game.hanzi game.popupState 0
+                        viewHanzi onMobile toneColors game.hanzi game.popupState 0
 
                     ChNum ->
                         UI.headingWith [ Element.Font.size 32 ] <| formattedNumberRaw game.number
@@ -392,13 +392,14 @@ viewGameModes game =
 
 {-| wordId = 0 for game, wordId > 0 for help
 -}
-viewHanzi onMobile hanzi popupState wordId =
+viewHanzi onMobile toneColors hanzi popupState wordId =
     hanzi
         |> List.map (\str -> { hanzi = str, pinyinPart = hanziToPinyinPart str })
         |> List.indexedMap
             (\id char ->
                 Element.map WordChainPopupMsg <|
                     WordChain.viewSingleHanzi onMobile
+                        toneColors
                         False
                         { state = WordChain.Show True
                         , popupState = popupState
@@ -410,14 +411,14 @@ viewHanzi onMobile hanzi popupState wordId =
         |> row [ centerX, Element.Font.size 24, spacing 5 ]
 
 
-viewHelp onMobile showPopupForCharacter =
+viewHelp onMobile toneColors showPopupForCharacter =
     let
         wrappedText txt =
             paragraph [] [ text txt ]
 
         reviewRow h e i =
             row [ spacing 20 ]
-                [ viewHanzi onMobile [ h ] showPopupForCharacter (i + 2)
+                [ viewHanzi onMobile toneColors [ h ] showPopupForCharacter (i + 2)
                 , text e
                 ]
     in
@@ -426,7 +427,7 @@ viewHelp onMobile showPopupForCharacter =
     , wrappedText "\nFor example:"
     , el [ centerX ] <| UI.heading "89 000 000"
     , wrappedText "... will translate to:"
-    , viewHanzi onMobile [ "八", "千", "九", "百", "万" ] showPopupForCharacter 1
+    , viewHanzi onMobile toneColors [ "八", "千", "九", "百", "万" ] showPopupForCharacter 1
     , wrappedText "Keep in mind that there are always multiple ways of translating the same number."
     , el [] <| UI.heading "Review"
     , wrappedText "Here is a review of the numbers:"

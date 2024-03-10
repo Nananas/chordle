@@ -265,8 +265,8 @@ type alias ViewSingleHanziOptions =
     }
 
 
-viewSingleHanzi : Bool -> Bool -> ViewSingleHanziOptions -> Element WordChainPopup.Msg
-viewSingleHanzi onMobile showHanziAsPinyin { state, popupState, wordId, id, character } =
+viewSingleHanzi : Bool -> Tones.Colors -> Bool -> ViewSingleHanziOptions -> Element WordChainPopup.Msg
+viewSingleHanzi onMobile toneColors showHanziAsPinyin { state, popupState, wordId, id, character } =
     let
         fontsize =
             if onMobile then
@@ -353,7 +353,7 @@ viewSingleHanzi onMobile showHanziAsPinyin { state, popupState, wordId, id, char
          , Element.Font.color <|
             case state of
                 Show _ ->
-                    Tones.toneToColor character.pinyinPart.tone
+                    Tones.toneToColor toneColors character.pinyinPart.tone
 
                 _ ->
                     UI.black

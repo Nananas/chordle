@@ -11,25 +11,25 @@ import Tones exposing (..)
 import UI
 
 
-view : Bool -> Bool -> msg -> (String -> msg) -> Element msg
-view showHelp onMobile toggleMsg noOpMsg =
+view : Bool -> Bool -> msg -> (String -> msg) -> Tones.Colors -> Element msg
+view showHelp onMobile toggleMsg noOpMsg toneColors =
     if onMobile then
-        viewMobile showHelp toggleMsg noOpMsg
+        viewMobile showHelp toggleMsg noOpMsg toneColors
 
     else
-        viewDesktop showHelp toggleMsg noOpMsg
+        viewDesktop showHelp toggleMsg noOpMsg toneColors
 
 
 
 -- TODO: remove copy of desktop/mobile help
 
 
-viewDesktop : Bool -> msg -> (String -> msg) -> Element msg
-viewDesktop showHelp toggleMsg noOpMsg =
+viewDesktop : Bool -> msg -> (String -> msg) -> Tones.Colors -> Element msg
+viewDesktop showHelp toggleMsg noOpMsg toneColors =
     if showHelp then
         UI.modal toggleMsg
             [ el [] <| UI.heading "How to play?"
-            , column [ scrollbarY, height fill, spacing 10 ]
+            , column [ scrollbarY, height <| minimum 500 fill, spacing 10 ]
                 [ column [ spacing 3, width fill ]
                     [ text "1. Write pinyin and tones in the input box"
                     , text "    on the bottom, like this:"
@@ -131,11 +131,11 @@ viewDesktop showHelp toggleMsg noOpMsg =
                     , text "    were made, the round is over."
                     , text "    All characters are then shown, color coded by their tone."
                     , row [ spacing 20, centerX, padding 10 ]
-                        [ viewExampleHanziFinishedRound "听" First False
-                        , viewExampleHanziFinishedRound "人" Second False
-                        , viewExampleHanziFinishedRound "写" Third True
-                        , viewExampleHanziFinishedRound "四" Forth False
-                        , viewExampleHanziFinishedRound "吧" Fifth False
+                        [ viewExampleHanziFinishedRound toneColors "听" First False
+                        , viewExampleHanziFinishedRound toneColors "人" Second False
+                        , viewExampleHanziFinishedRound toneColors "写" Third True
+                        , viewExampleHanziFinishedRound toneColors "四" Forth False
+                        , viewExampleHanziFinishedRound toneColors "吧" Fifth False
                         ]
                     ]
                 ]
@@ -146,8 +146,8 @@ viewDesktop showHelp toggleMsg noOpMsg =
         none
 
 
-viewMobile : Bool -> msg -> (String -> msg) -> Element msg
-viewMobile showHelp toggleMsg noOpMsg =
+viewMobile : Bool -> msg -> (String -> msg) -> Tones.Colors -> Element msg
+viewMobile showHelp toggleMsg noOpMsg toneColors =
     if showHelp then
         MobileUI.modal toggleMsg <|
             [ el [] <| MobileUI.heading "How to play?"
@@ -254,11 +254,11 @@ viewMobile showHelp toggleMsg noOpMsg =
                     , text "    All characters are then shown, color coded by their tone."
                     ]
                 , row [ spacing 20, centerX, padding 10 ]
-                    [ viewExampleHanziFinishedRound "听" First False
-                    , viewExampleHanziFinishedRound "人" Second False
-                    , viewExampleHanziFinishedRound "写" Third True
-                    , viewExampleHanziFinishedRound "四" Forth False
-                    , viewExampleHanziFinishedRound "吧" Fifth False
+                    [ viewExampleHanziFinishedRound toneColors "听" First False
+                    , viewExampleHanziFinishedRound toneColors "人" Second False
+                    , viewExampleHanziFinishedRound toneColors "写" Third True
+                    , viewExampleHanziFinishedRound toneColors "四" Forth False
+                    , viewExampleHanziFinishedRound toneColors "吧" Fifth False
                     ]
                 ]
             , UI.viewFooter
@@ -321,15 +321,15 @@ viewExampleHanziIncorrect =
             text "hao3"
 
 
-viewExampleHanziFinishedRound : String -> Tone -> Bool -> Element msg
-viewExampleHanziFinishedRound pinyin tone correct =
+viewExampleHanziFinishedRound : Tones.Colors -> String -> Tone -> Bool -> Element msg
+viewExampleHanziFinishedRound toneColors pinyin tone correct =
     el
         [ UI.floating
         , UI.rounded 5
         , paddingXY 20 0
         , width <| px 50
         , height <| px 50
-        , Font.color <| toneToColor tone
+        , Font.color <| toneToColor toneColors tone
         , Font.medium
         , Background.color <| UI.white
         , Border.color <|
