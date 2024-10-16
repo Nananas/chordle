@@ -45,7 +45,10 @@ dicts = [
         [("Book Semester 1", addWords("clt5-semester1")),
         ("Extra Semester 1", addWords("extra-clt5-semester1")),
         ("Book Semester 2", addWords("clt5-semester2")),
-        ("Extra Semester 2", addWords("extra-clt5-semester2"))])
+        ("Extra Semester 2", addWords("extra-clt5-semester2"))]),
+    ("NPCR CLT year 6",
+        [("Book Semester 1", addWords("clt6-semester1")),
+        ("Extra Semester 1", addWords("extra-clt6-semester1"))]),
     ]
 
 
