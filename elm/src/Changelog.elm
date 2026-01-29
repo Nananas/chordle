@@ -18,7 +18,12 @@ currentVersion =
 
 
 changelog =
-    [ ( Date.fromCalendarDate 2024 Oct 6
+    [ ( Date.fromCalendarDate 2025 Jan 29
+      , "0.3.10"
+      , [ "Dictionary selection UI fix on chrome-family browsers."
+        ]
+      )
+    , ( Date.fromCalendarDate 2024 Oct 6
       , "0.3.9"
       , [ "Added CLT6 'Book semester 1' and 'Extra Semester 1' dictionaries."
         ]
