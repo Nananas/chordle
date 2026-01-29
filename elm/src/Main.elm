@@ -880,7 +880,7 @@ viewDictionaryModal onMobile wordsFile activeDicts showingCurrentDictionaryIndex
                                 subtitle
                         , el [ alignRight, Font.color UI.accentColor ] <| text <| String.fromInt (List.length words) ++ " words"
                         ]
-                    , el [ scrollbarY, height fill, width fill, padding 5 ] <|
+                    , el [ scrollbarY, height (minimum 0 fill), width fill, padding 5 ] <|
                         (wordsFile.parts
                             |> Dict.get dictName
                             |> Maybe.withDefault []
